@@ -98,6 +98,14 @@ interface RepositoryInterface
     public function getTotalItems(): int;
 
     /**
+     * Sets the items on the current page
+     *
+     * @param mixed $items
+     * @return RepositoryInterface
+     */
+    public function setItems(mixed $items): RepositoryInterface;
+
+    /**
      * Sets the aliases for properties repository
      *
      * @param array $aliases

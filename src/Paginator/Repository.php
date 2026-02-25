@@ -131,6 +131,16 @@ class Repository implements \Phalcon\Paginator\RepositoryInterface, \JsonSeriali
     /**
      * {@inheritdoc}
      *
+     * @param mixed $items
+     * @return RepositoryInterface
+     */
+    public function setItems(mixed $items): RepositoryInterface
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     *
      * @param array $aliases
      * @return RepositoryInterface
      */
