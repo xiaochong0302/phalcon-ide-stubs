@@ -12,9 +12,15 @@ namespace Phalcon\Mvc\Model;
 use Phalcon\Cache\Adapter\AdapterInterface as CacheAdapterInterface;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\InjectionAwareInterface;
+use Phalcon\Mvc\Model\MetaData\Exceptions\ContainerRequired;
+use Phalcon\Mvc\Model\MetaData\Exceptions\CorruptedMetaData;
+use Phalcon\Mvc\Model\MetaData\Exceptions\InvalidMetaDataForModel;
+use Phalcon\Mvc\Model\MetaData\Exceptions\MetaDataStrategyFailed;
 use Phalcon\Mvc\Model\MetaData\Strategy\Introspection;
 use Phalcon\Mvc\Model\MetaData\Strategy\StrategyInterface;
 use Phalcon\Mvc\ModelInterface;
+use Phalcon\Support\Settings;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
 
 /**
  * Phalcon\Mvc\Model\MetaData
@@ -30,45 +36,129 @@ use Phalcon\Mvc\ModelInterface;
  * $metaData = new \Phalcon\Mvc\Model\MetaData\Memory();
  *
  * $attributes = $metaData->getAttributes(
- *     new Robots()
+ *     new Invoices()
  * );
  *
  * print_r($attributes);
  * ```
+ *
+ * Each model's metadata is stored as two positional arrays addressed by two
+ * constant families. Both families count from 0 and therefore share numeric
+ * values, so a metadata array is only meaningful together with the family that
+ * indexes it. The metadata cache adapters persist these arrays verbatim, so the
+ * slot layout is a stored format: reordering a slot invalidates existing
+ * caches.
+ *
+ * Attribute metadata array (`MODELS_` family):
+ *
+ * | Slot | Constant                          | Contents                                        |
+ * |------|-----------------------------------|-------------------------------------------------|
+ * | 0    | `MODELS_ATTRIBUTES`               | All mapped attribute (column) names             |
+ * | 1    | `MODELS_PRIMARY_KEY`              | Primary-key attributes                          |
+ * | 2    | `MODELS_NON_PRIMARY_KEY`          | Non-primary-key attributes                      |
+ * | 3    | `MODELS_NOT_NULL`                 | Attributes declared `NOT NULL`                  |
+ * | 4    | `MODELS_DATA_TYPES`               | attribute => column data type                   |
+ * | 5    | `MODELS_DATA_TYPES_NUMERIC`       | Attributes with a numeric type                  |
+ * | 6    | `MODELS_DATE_AT`                  | Reserved (declared, currently unused)           |
+ * | 7    | `MODELS_DATE_IN`                  | Reserved (declared, currently unused)           |
+ * | 8    | `MODELS_IDENTITY_COLUMN`          | The auto-increment identity attribute           |
+ * | 9    | `MODELS_DATA_TYPES_BIND`          | attribute => PDO bind type                      |
+ * | 10   | `MODELS_AUTOMATIC_DEFAULT_INSERT` | Attributes omitted from `INSERT` (DB-defaulted) |
+ * | 11   | `MODELS_AUTOMATIC_DEFAULT_UPDATE` | Attributes omitted from `UPDATE` (DB-defaulted) |
+ * | 12   | `MODELS_DEFAULT_VALUES`           | attribute => default value                      |
+ * | 13   | `MODELS_EMPTY_STRING_VALUES`      | Attributes that keep `''` instead of `NULL`     |
+ *
+ * Column-map array (`MODELS_COLUMN_MAP` family), present only when a column map
+ * is defined:
+ *
+ * | Slot | Constant                    | Contents            |
+ * |------|-----------------------------|---------------------|
+ * | 0    | `MODELS_COLUMN_MAP`         | column => attribute |
+ * | 1    | `MODELS_REVERSE_COLUMN_MAP` | attribute => column |
  */
 abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon\Mvc\Model\MetaDataInterface
 {
-    const MODELS_ATTRIBUTES = 0;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
 
-    const MODELS_AUTOMATIC_DEFAULT_INSERT = 10;
+    /**
+     * @var int
+     */
+    const int MODELS_ATTRIBUTES = 0;
 
-    const MODELS_AUTOMATIC_DEFAULT_UPDATE = 11;
+    /**
+     * @var int
+     */
+    const int MODELS_AUTOMATIC_DEFAULT_INSERT = 10;
 
-    const MODELS_COLUMN_MAP = 0;
+    /**
+     * @var int
+     */
+    const int MODELS_AUTOMATIC_DEFAULT_UPDATE = 11;
 
-    const MODELS_DATE_AT = 6;
+    /**
+     * @var int
+     */
+    const int MODELS_COLUMN_MAP = 0;
 
-    const MODELS_DATE_IN = 7;
+    /**
+     * @var int
+     */
+    const int MODELS_DATA_TYPES = 4;
 
-    const MODELS_DATA_TYPES = 4;
+    /**
+     * @var int
+     */
+    const int MODELS_DATA_TYPES_BIND = 9;
 
-    const MODELS_DATA_TYPES_BIND = 9;
+    /**
+     * @var int
+     */
+    const int MODELS_DATA_TYPES_NUMERIC = 5;
 
-    const MODELS_DATA_TYPES_NUMERIC = 5;
+    /**
+     * @var int
+     */
+    const int MODELS_DATE_AT = 6;
 
-    const MODELS_DEFAULT_VALUES = 12;
+    /**
+     * @var int
+     */
+    const int MODELS_DATE_IN = 7;
 
-    const MODELS_EMPTY_STRING_VALUES = 13;
+    /**
+     * @var int
+     */
+    const int MODELS_DEFAULT_VALUES = 12;
 
-    const MODELS_IDENTITY_COLUMN = 8;
+    /**
+     * @var int
+     */
+    const int MODELS_EMPTY_STRING_VALUES = 13;
 
-    const MODELS_NON_PRIMARY_KEY = 2;
+    /**
+     * @var int
+     */
+    const int MODELS_IDENTITY_COLUMN = 8;
 
-    const MODELS_NOT_NULL = 3;
+    /**
+     * @var int
+     */
+    const int MODELS_NON_PRIMARY_KEY = 2;
 
-    const MODELS_PRIMARY_KEY = 1;
+    /**
+     * @var int
+     */
+    const int MODELS_NOT_NULL = 3;
 
-    const MODELS_REVERSE_COLUMN_MAP = 1;
+    /**
+     * @var int
+     */
+    const int MODELS_PRIMARY_KEY = 1;
+
+    /**
+     * @var int
+     */
+    const int MODELS_REVERSE_COLUMN_MAP = 1;
 
     /**
      * @var CacheAdapterInterface|null
@@ -91,6 +181,16 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     protected $metaData = [];
 
     /**
+     * Holds metadata index writes that arrived before the model's metadata was
+     * properly initialized (e.g. skipAttributes() called in a parent model's
+     * initialize() while the child's source had not yet been set).  Applied
+     * inside initializeMetaData() after the real schema is loaded.
+     *
+     * @var array
+     */
+    protected $pendingMetaDataWrites = [];
+
+    /**
      * @var StrategyInterface|null
      */
     protected $strategy = null;
@@ -110,7 +210,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -128,7 +228,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getAutomaticCreateAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -146,7 +246,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getAutomaticUpdateAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -164,7 +264,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getBindTypes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -182,7 +282,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getColumnMap(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -195,20 +295,21 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     }
 
     /**
-     * Returns attributes (which have default values) and their default values
+     * Returns a ColumnMap Unique key for meta-data is created using className
      *
-     * ```php
-     * print_r(
-     *     $metaData->getDefaultValues(
-     *         new Robots()
-     *     )
-     * );
-     * ```
-     *
+     * @return string
      * @param \Phalcon\Mvc\ModelInterface $model
-     * @return array
      */
-    public function getDefaultValues(\Phalcon\Mvc\ModelInterface $model): array
+    final public function getColumnMapUniqueKey(\Phalcon\Mvc\ModelInterface $model): string|null
+    {
+    }
+
+    /**
+     * Returns the DependencyInjector container
+     *
+     * @return DiInterface
+     */
+    public function getDI(): DiInterface
     {
     }
 
@@ -218,7 +319,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getDataTypes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -236,7 +337,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getDataTypesNumeric(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -249,11 +350,20 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     }
 
     /**
-     * Returns the DependencyInjector container
+     * Returns attributes (which have default values) and their default values
      *
-     * @return DiInterface
+     * ```php
+     * print_r(
+     *     $metaData->getDefaultValues(
+     *         new Invoices()
+     *     )
+     * );
+     * ```
+     *
+     * @param \Phalcon\Mvc\ModelInterface $model
+     * @return array
      */
-    public function getDI(): DiInterface
+    public function getDefaultValues(\Phalcon\Mvc\ModelInterface $model): array
     {
     }
 
@@ -263,7 +373,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getEmptyStringAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -281,15 +391,36 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getIdentityField(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
      *
      * @param \Phalcon\Mvc\ModelInterface $model
+     * @return bool|string|null
+     */
+    public function getIdentityField(\Phalcon\Mvc\ModelInterface $model): bool|string|null
+    {
+    }
+
+    /**
+     * Returns a MetaData Unique key for meta-data is created using className
+     *
+     * @return string
+     * @param \Phalcon\Mvc\ModelInterface $model
+     */
+    final public function getMetaDataUniqueKey(\Phalcon\Mvc\ModelInterface $model): string|null
+    {
+    }
+
+    /**
+     * Returns the model UniqueID based on model and array row primary key(s) value(s)
+     *
+     * @param \Phalcon\Mvc\ModelInterface $model
+     * @param array $row
      * @return string|null
      */
-    public function getIdentityField(\Phalcon\Mvc\ModelInterface $model): string|null
+    public function getModelUUID(\Phalcon\Mvc\ModelInterface $model, array $row): string|null
     {
     }
 
@@ -299,7 +430,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getNonPrimaryKeyAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -317,7 +448,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getNotNullAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -335,7 +466,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getPrimaryKeyAttributes(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -353,7 +484,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->getReverseColumnMap(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -380,7 +511,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * var_dump(
      *     $metaData->hasAttribute(
-     *         new Robots(),
+     *         new Invoices(),
      *         "name"
      *     )
      * );
@@ -410,12 +541,23 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     }
 
     /**
+     * Compares if two models are the same in memory
+     *
+     * @param \Phalcon\Mvc\ModelInterface $first
+     * @param \Phalcon\Mvc\ModelInterface $other
+     * @return bool
+     */
+    public function modelEquals(\Phalcon\Mvc\ModelInterface $first, \Phalcon\Mvc\ModelInterface $other): bool
+    {
+    }
+
+    /**
      * Reads metadata from the adapter
      *
-     * @param string $key
+     * @param mixed $key
      * @return array|null
      */
-    public function read(string $key): array|null
+    public function read($key): array|null
     {
     }
 
@@ -425,7 +567,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->readColumnMap(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -443,7 +585,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->readColumnMapIndex(
-     *         new Robots(),
+     *         new Invoices(),
      *         MetaData::MODELS_REVERSE_COLUMN_MAP
      *     )
      * );
@@ -463,7 +605,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->readMetaData(
-     *         new Robots()
+     *         new Invoices()
      *     )
      * );
      * ```
@@ -481,7 +623,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->readMetaDataIndex(
-     *         new Robots(),
+     *         new Invoices(),
      *         0
      *     )
      * );
@@ -489,9 +631,9 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      *
      * @param \Phalcon\Mvc\ModelInterface $model
      * @param int $index
-     * @return array|null
+     * @return array|string|null
      */
-    final public function readMetaDataIndex(\Phalcon\Mvc\ModelInterface $model, int $index): array|null
+    final public function readMetaDataIndex(\Phalcon\Mvc\ModelInterface $model, int $index): string|array|null
     {
     }
 
@@ -513,7 +655,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      *
      * ```php
      * $metaData->setAutomaticCreateAttributes(
-     *     new Robots(),
+     *     new Invoices(),
      *     [
      *         "created_at" => true,
      *     ]
@@ -533,7 +675,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      *
      * ```php
      * $metaData->setAutomaticUpdateAttributes(
-     *     new Robots(),
+     *     new Invoices(),
      *     [
      *         "modified_at" => true,
      *     ]
@@ -549,11 +691,21 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     }
 
     /**
+     * Sets the DependencyInjector container
+     *
+     * @param \Phalcon\Di\DiInterface $container
+     * @return void
+     */
+    public function setDI(\Phalcon\Di\DiInterface $container): void
+    {
+    }
+
+    /**
      * Set the attributes that allow empty string values
      *
      * ```php
      * $metaData->setEmptyStringAttributes(
-     *     new Robots(),
+     *     new Invoices(),
      *     [
      *         "name" => true,
      *     ]
@@ -565,16 +717,6 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * @return void
      */
     public function setEmptyStringAttributes(\Phalcon\Mvc\ModelInterface $model, array $attributes): void
-    {
-    }
-
-    /**
-     * Sets the DependencyInjector container
-     *
-     * @param \Phalcon\Di\DiInterface $container
-     * @return void
-     */
-    public function setDI(\Phalcon\Di\DiInterface $container): void
     {
     }
 
@@ -605,7 +747,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * ```php
      * print_r(
      *     $metaData->writeColumnMapIndex(
-     *         new Robots(),
+     *         new Invoices(),
      *         MetaData::MODELS_REVERSE_COLUMN_MAP,
      *         [
      *             "leName" => "name",
@@ -624,7 +766,7 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     }
 
     /**
-     * Initialize old behaviour for compatability
+     * Initialize old behavior for compatability
      *
      * @param \Phalcon\Mvc\ModelInterface $model
      * @param mixed $key
@@ -632,17 +774,6 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
      * @param mixed $schema
      */
     final protected function initialize(\Phalcon\Mvc\ModelInterface $model, $key, $table, $schema)
-    {
-    }
-
-    /**
-     * Initialize the metadata for certain table
-     *
-     * @param \Phalcon\Mvc\ModelInterface $model
-     * @param mixed $key
-     * @return bool
-     */
-    final protected function initializeMetaData(\Phalcon\Mvc\ModelInterface $model, $key): bool
     {
     }
 
@@ -658,43 +789,23 @@ abstract class MetaData implements \Phalcon\Di\InjectionAwareInterface, \Phalcon
     }
 
     /**
+     * Initialize the metadata for certain table
+     *
+     * @param \Phalcon\Mvc\ModelInterface $model
+     * @param mixed $key
+     * @return bool
+     */
+    final protected function initializeMetaData(\Phalcon\Mvc\ModelInterface $model, $key): bool
+    {
+    }
+
+    /**
      * Throws an exception when the metadata cannot be written
      *
      * @param mixed $option
      * @return void
      */
     private function throwWriteException($option): void
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    protected function getArrVal(array $collection, $index, $defaultValue = null): mixed
-    {
-    }
-
-    /**
-     * Returns a MetaData Unique key for meta-data is created using className
-     *
-     * @return string
-     * @param \Phalcon\Mvc\ModelInterface $model
-     */
-    final public function getMetaDataUniqueKey(\Phalcon\Mvc\ModelInterface $model): string|null
-    {
-    }
-
-    /**
-     * Returns a ColumnMap Unique key for meta-data is created using className
-     *
-     * @return string
-     * @param \Phalcon\Mvc\ModelInterface $model
-     */
-    final public function getColumnMapUniqueKey(\Phalcon\Mvc\ModelInterface $model): string|null
     {
     }
 }

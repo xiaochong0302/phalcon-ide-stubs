@@ -9,7 +9,7 @@
  */
 namespace Phalcon\Support\Helper\Str;
 
-use RuntimeException;
+use Phalcon\Support\Helper\Str\Exceptions\SyntaxError;
 
 /**
  * Generates random text in accordance with the template. The template is
@@ -19,11 +19,11 @@ use RuntimeException;
 class Dynamic
 {
     /**
+     * @phpstan-param non-empty-string $separator
      * @param string $text
      * @param string $leftDelimiter
      * @param string $rightDelimiter
      * @param string $separator
-     *
      * @return string
      */
     public function __invoke(string $text, string $leftDelimiter = '{', string $rightDelimiter = '}', string $separator = '|'): string

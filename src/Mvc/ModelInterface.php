@@ -14,6 +14,7 @@ use Phalcon\Di\DiInterface;
 use Phalcon\Messages\MessageInterface;
 use Phalcon\Mvc\Model\CriteriaInterface;
 use Phalcon\Mvc\Model\MetaDataInterface;
+use Phalcon\Mvc\Model\ResultInterface;
 use Phalcon\Mvc\Model\Resultset;
 use Phalcon\Mvc\Model\ResultsetInterface;
 use Phalcon\Mvc\Model\TransactionInterface;
@@ -115,7 +116,15 @@ interface ModelInterface
     public function delete(): bool;
 
     /**
-     * Allows to query a set of records that match the specified conditions
+     * Allows to query a set of records that match the specified conditions.
+     *
+     * This is one of four ways to express a query against a model, each with an
+     * intended lane:
+     *
+     * - find-parameter arrays (this method) for simple lookups;
+     * - `Phalcon\Mvc\Model\Query\Builder` as the canonical programmatic API;
+     * - `Phalcon\Mvc\Model\Criteria` as request-bound convenience;
+     * - raw PHQL via `Phalcon\Mvc\Model\Query` for everything else.
      *
      * @param array|string|int|null $parameters *
      * @return T[]|\Phalcon\Mvc\Model\Resultset<int, T>
@@ -255,10 +264,10 @@ interface ModelInterface
     /**
      * Create a criteria for a specific model
      *
-     * @param \Phalcon\Di\DiInterface $container
+     * @param \Phalcon\Di\DiInterface|null $container
      * @return CriteriaInterface
      */
-    public static function query(\Phalcon\Di\DiInterface $container = null): CriteriaInterface;
+    public static function query(?\Phalcon\Di\DiInterface $container = null): CriteriaInterface;
 
     /**
      * Refreshes the model attributes re-querying the record from the database
@@ -311,6 +320,16 @@ interface ModelInterface
     public function setSnapshotData(array $data, $columnMap = null): void;
 
     /**
+     * Marks one or more many-to-many relationships to be synchronized (or not)
+     * on the next save() call.
+     *
+     * @param string|array|null $elements
+     * @param bool $enabled
+     * @return ModelInterface
+     */
+    public function setSync($elements = null, bool $enabled = true): ModelInterface;
+
+    /**
      * Sets a transaction related to the Model instance
      *
      * @param \Phalcon\Mvc\Model\TransactionInterface $transaction
@@ -343,18 +362,18 @@ interface ModelInterface
     public static function sum($parameters = null): ResultsetInterface|float;
 
     /**
-     * Check whether validation process has generated any messages
-     *
-     * @return bool
-     */
-    public function validationHasFailed(): bool;
-
-    /**
-     * Updates a model instance. If the instance doesn't exist in the
+     * Updates a model instance. If the instance does not exist in the
      * persistence it will throw an exception. Returning true on success or
      * false otherwise.
      *
      * @return bool
      */
     public function update(): bool;
+
+    /**
+     * Check whether validation process has generated any messages
+     *
+     * @return bool
+     */
+    public function validationHasFailed(): bool;
 }

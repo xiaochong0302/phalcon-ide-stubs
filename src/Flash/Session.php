@@ -9,6 +9,8 @@
  */
 namespace Phalcon\Flash;
 
+use Phalcon\Flash\Exceptions\SessionServiceUnavailable;
+use Phalcon\Html\Escaper\EscaperInterface;
 use Phalcon\Session\ManagerInterface;
 
 /**
@@ -22,8 +24,26 @@ use Phalcon\Session\ManagerInterface;
  */
 class Session extends \Phalcon\Flash\AbstractFlash
 {
-    const SESSION_KEY = '_flashMessages';
+    /**
+     * @var string
+     */
+    const string SESSION_KEY = '_flashMessages';
 
+    /**
+     * @var string
+     */
+    protected $sessionKey = '';
+
+    /**
+     * Session constructor.
+     *
+     * @param EscaperInterface|null $escaper
+     * @param ManagerInterface|null $session
+     * @param string|null           $sessionKey
+     */
+    public function __construct(?\Phalcon\Html\Escaper\EscaperInterface $escaper = null, ?\Phalcon\Session\ManagerInterface $session = null, ?string $sessionKey = null)
+    {
+    }
 
     /**
      * Clear messages in the session messenger
@@ -56,7 +76,7 @@ class Session extends \Phalcon\Flash\AbstractFlash
      * @return bool
      * @throws Exception
      */
-    public function has(string $type = null): bool
+    public function has(?string $type = null): bool
     {
     }
 
@@ -94,7 +114,7 @@ class Session extends \Phalcon\Flash\AbstractFlash
      * @return array
      * @throws Exception
      */
-    protected function getSessionMessages(bool $remove, string $type = null): array
+    protected function getSessionMessages(bool $remove, ?string $type = null): array
     {
     }
 

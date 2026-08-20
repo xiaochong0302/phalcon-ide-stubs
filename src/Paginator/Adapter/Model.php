@@ -9,14 +9,11 @@
  */
 namespace Phalcon\Paginator\Adapter;
 
-use Phalcon\Mvc\ModelInterface;
-use Phalcon\Mvc\Model\ResultsetInterface;
-use Phalcon\Paginator\Exception;
+use Phalcon\Contracts\Paginator\PaginatorTypes;
+use Phalcon\Paginator\Exceptions\MissingRequiredParameter;
 use Phalcon\Paginator\RepositoryInterface;
 
 /**
- * Phalcon\Paginator\Adapter\Model
- *
  * This adapter allows to paginate data using a Phalcon\Mvc\Model resultset as a
  * base.
  *
@@ -25,7 +22,7 @@ use Phalcon\Paginator\RepositoryInterface;
  *
  * $paginator = new Model(
  *     [
- *         "model" => Robots::class,
+ *         "model" => Invoices::class,
  *         "limit" => 25,
  *         "page"  => $currentPage,
  *     ]
@@ -33,9 +30,9 @@ use Phalcon\Paginator\RepositoryInterface;
  *
  * $paginator = new Model(
  *     [
- *         "model" => Robots::class,
+ *         "model" => Invoices::class,
  *         "parameters" => [
- *              "columns" => "id, name"
+ *              "columns" => "inv_id, inv_title"
  *         ],
  *         "limit" => 12,
  *         "page"  => $currentPage,
@@ -44,13 +41,13 @@ use Phalcon\Paginator\RepositoryInterface;
  *
  * $paginator = new Model(
  *     [
- *         "model" => Robots::class,
+ *         "model" => Invoices::class,
  *         "parameters" => [
- *              "type = :type:",
+ *              "inv_status_flag = :flag:",
  *              "bind" => [
- *                  "type" => "mechanical"
+ *                  "flag" => 1
  *              ],
- *              "order" => "name"
+ *              "order" => "inv_title"
  *         ],
  *         "limit" => 16,
  *         "page"  => $currentPage,
@@ -59,8 +56,8 @@ use Phalcon\Paginator\RepositoryInterface;
  *
  * $paginator = new Model(
  *     [
- *         "model" => Robots::class,
- *         "parameters" => "(id % 2) = 0",
+ *         "model" => Invoices::class,
+ *         "parameters" => "(inv_id % 2) = 0",
  *         "limit" => 8,
  *         "page"  => $currentPage,
  *     ]
@@ -68,8 +65,8 @@ use Phalcon\Paginator\RepositoryInterface;
  *
  * $paginator = new Model(
  *     [
- *         "model" => Robots::class,
- *         "parameters" => [ "(id % 2) = 0" ],
+ *         "model" => Invoices::class,
+ *         "parameters" => [ "(inv_id % 2) = 0" ],
  *         "limit" => 8,
  *         "page"  => $currentPage,
  *     ]
@@ -77,9 +74,24 @@ use Phalcon\Paginator\RepositoryInterface;
  *
  * $paginate = $paginator->paginate();
  * ```
+ *
+ * @phpstan-import-type paginator_config from PaginatorTypes
  */
 class Model extends \Phalcon\Paginator\Adapter\AbstractAdapter
 {
+    /**
+     * Phalcon\Paginator\Adapter\Model constructor
+     *
+     * @param paginator_config $config = [
+     *     'model'  => null,
+     *     'limit'  => 10,
+     *     'page'   => 1
+     * ]
+     */
+    public function __construct(array $config)
+    {
+    }
+
     /**
      * Returns a slice of the resultset to show in the pagination
      *

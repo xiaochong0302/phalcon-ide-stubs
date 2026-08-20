@@ -19,9 +19,9 @@ interface InterpolatorInterface
     /**
      * Replaces placeholders by the values passed
      *
+     * @phpstan-param array<string, string> $placeholders
      * @param string $translation
-     * @param array  $placeholders
-     *
+     * @param array $placeholders
      * @return string
      */
     public function replacePlaceholders(string $translation, array $placeholders = []): string;

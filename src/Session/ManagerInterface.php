@@ -10,21 +10,30 @@
 namespace Phalcon\Session;
 
 use InvalidArgumentException;
-use RuntimeException;
+use Phalcon\Contracts\Session\SessionTypes;
 use SessionHandlerInterface;
 
 /**
- * Phalcon\Session
- *
  * Interface for the Phalcon\Session\Manager
+ *
+ * @phpstan-import-type session_options from SessionTypes
  */
 interface ManagerInterface
 {
-    const SESSION_ACTIVE = 2;
+    /**
+     * @var int
+     */
+    const int SESSION_ACTIVE = 2;
 
-    const SESSION_DISABLED = 0;
+    /**
+     * @var int
+     */
+    const int SESSION_DISABLED = 0;
 
-    const SESSION_NONE = 1;
+    /**
+     * @var int
+     */
+    const int SESSION_NONE = 1;
 
 
     /**
@@ -61,18 +70,18 @@ interface ManagerInterface
     public function __unset(string $key): void;
 
     /**
-     * Check whether the session has been started
-     *
-     * @return bool
-     */
-    public function exists(): bool;
-
-    /**
      * Destroy/end a session
      *
      * @return void
      */
     public function destroy(): void;
+
+    /**
+     * Check whether the session has been started
+     *
+     * @return bool
+     */
+    public function exists(): bool;
 
     /**
      * Gets a session variable from an application context
@@ -85,18 +94,18 @@ interface ManagerInterface
     public function get(string $key, $defaultValue = null, bool $remove = false): mixed;
 
     /**
+     * Returns the stored session adapter
+     *
+     * @return SessionHandlerInterface|null
+     */
+    public function getAdapter(): SessionHandlerInterface|null;
+
+    /**
      * Returns the session id
      *
      * @return string
      */
     public function getId(): string;
-
-    /**
-     * Returns the stored session adapter
-     *
-     * @return SessionHandlerInterface
-     */
-    public function getAdapter(): SessionHandlerInterface;
 
     /**
      * Returns the name of the session
@@ -108,6 +117,7 @@ interface ManagerInterface
     /**
      * Get internal options
      *
+     * @phpstan-return session_options
      * @return array
      */
     public function getOptions(): array;
@@ -119,6 +129,14 @@ interface ManagerInterface
      * @return bool
      */
     public function has(string $key): bool;
+
+    /**
+     * Regenerates the session id using the adapter.
+     *
+     * @param bool $deleteOldSession
+     * @return ManagerInterface
+     */
+    public function regenerateId(bool $deleteOldSession = true): ManagerInterface;
 
     /**
      * Removes a session variable from an application context
@@ -166,17 +184,11 @@ interface ManagerInterface
     /**
      * Sets session's options
      *
+     * @phpstan-param session_options $options
      * @param array $options
      * @return void
      */
     public function setOptions(array $options): void;
-
-    /**
-     * Returns the status of the current session.
-     *
-     * @return int
-     */
-    public function status(): int;
 
     /**
      * Starts the session (if headers are already sent the session will not be
@@ -187,10 +199,9 @@ interface ManagerInterface
     public function start(): bool;
 
     /**
-     * Regenerates the session id using the adapter.
+     * Returns the status of the current session.
      *
-     * @param bool $deleteOldSession
-     * @return ManagerInterface
+     * @return int
      */
-    public function regenerateId(bool $deleteOldSession = true): ManagerInterface;
+    public function status(): int;
 }

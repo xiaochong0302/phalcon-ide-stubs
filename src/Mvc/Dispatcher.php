@@ -9,10 +9,12 @@
  */
 namespace Phalcon\Mvc;
 
-use Phalcon\Mvc\Dispatcher\Exception;
+use Phalcon\Contracts\Dispatcher\DispatcherTypes;
+use Phalcon\Dispatcher\AbstractDispatcher as BaseDispatcher;
 use Phalcon\Events\ManagerInterface;
 use Phalcon\Http\ResponseInterface;
-use Phalcon\Dispatcher\AbstractDispatcher as BaseDispatcher;
+use Phalcon\Mvc\Dispatcher\Exception;
+use Phalcon\Mvc\Dispatcher\Exceptions\ResponseServiceUnavailable;
 
 /**
  * Dispatching is the process of taking the request object, extracting the
@@ -33,14 +35,16 @@ use Phalcon\Dispatcher\AbstractDispatcher as BaseDispatcher;
  *
  * $controller = $dispatcher->dispatch();
  * ```
+ *
+ * @phpstan-import-type dispatcher_forward from DispatcherTypes
  */
 class Dispatcher extends \Phalcon\Dispatcher\AbstractDispatcher implements \Phalcon\Mvc\DispatcherInterface
 {
-    protected $defaultAction = 'index';
+    protected string $defaultAction = 'index';
 
-    protected $defaultHandler = 'index';
+    protected string $defaultHandler = 'index';
 
-    protected $handlerSuffix = 'Controller';
+    protected string $handlerSuffix = 'Controller';
 
     /**
      * Forwards the execution flow to another controller/action.
@@ -99,6 +103,7 @@ class Dispatcher extends \Phalcon\Dispatcher\AbstractDispatcher implements \Phal
      * );
      * ```
      *
+     * @phpstan-param dispatcher_forward $forward
      * @param array $forward
      * @return void
      */
@@ -144,16 +149,10 @@ class Dispatcher extends \Phalcon\Dispatcher\AbstractDispatcher implements \Phal
     }
 
     /**
-     * Gets previous dispatched action name
-     *
-     * @return string
-     */
-    public function getPreviousActionName(): string
-    {
-    }
-
-    /**
      * Gets previous dispatched controller name
+     *
+     * Note: This is an Mvc-specific alias for the base
+     * getPreviousHandlerName().
      *
      * @return string
      */
@@ -162,20 +161,12 @@ class Dispatcher extends \Phalcon\Dispatcher\AbstractDispatcher implements \Phal
     }
 
     /**
-     * Gets previous dispatched namespace name
-     *
-     * @return string
-     */
-    public function getPreviousNamespaceName(): string
-    {
-    }
-
-    /**
      * Sets the controller name to be dispatched
      *
      * @param string $controllerName
+     * @return DispatcherInterface
      */
-    public function setControllerName(string $controllerName)
+    public function setControllerName(string $controllerName): DispatcherInterface
     {
     }
 
@@ -183,8 +174,9 @@ class Dispatcher extends \Phalcon\Dispatcher\AbstractDispatcher implements \Phal
      * Sets the default controller suffix
      *
      * @param string $controllerSuffix
+     * @return DispatcherInterface
      */
-    public function setControllerSuffix(string $controllerSuffix)
+    public function setControllerSuffix(string $controllerSuffix): DispatcherInterface
     {
     }
 
@@ -192,8 +184,9 @@ class Dispatcher extends \Phalcon\Dispatcher\AbstractDispatcher implements \Phal
      * Sets the default controller name
      *
      * @param string $controllerName
+     * @return DispatcherInterface
      */
-    public function setDefaultController(string $controllerName)
+    public function setDefaultController(string $controllerName): DispatcherInterface
     {
     }
 

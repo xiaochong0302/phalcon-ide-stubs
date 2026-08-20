@@ -9,12 +9,63 @@
  */
 namespace Phalcon\Mvc\Model;
 
+use Phalcon\Cache\CacheInterface;
 use Phalcon\Db\Column;
 use Phalcon\Db\RawValue;
 use Phalcon\Db\ResultInterface;
 use Phalcon\Db\Adapter\AdapterInterface;
 use Phalcon\Di\DiInterface;
 use Phalcon\Mvc\ModelInterface;
+use Phalcon\Mvc\Model\Query\Exceptions\AmbiguousColumn;
+use Phalcon\Mvc\Model\Query\Exceptions\AmbiguousJoinRelation;
+use Phalcon\Mvc\Model\Query\Exceptions\BindParameterNotInPlaceholders;
+use Phalcon\Mvc\Model\Query\Exceptions\BindTypeRequiresArray;
+use Phalcon\Mvc\Model\Query\Exceptions\BindValueRequired;
+use Phalcon\Mvc\Model\Query\Exceptions\ColumnNotInDomain;
+use Phalcon\Mvc\Model\Query\Exceptions\ColumnNotInSelectedModels;
+use Phalcon\Mvc\Model\Query\Exceptions\CorruptedAst;
+use Phalcon\Mvc\Model\Query\Exceptions\CorruptedDeleteAst;
+use Phalcon\Mvc\Model\Query\Exceptions\CorruptedInsertAst;
+use Phalcon\Mvc\Model\Query\Exceptions\CorruptedSelectAst;
+use Phalcon\Mvc\Model\Query\Exceptions\CorruptedUpdateAst;
+use Phalcon\Mvc\Model\Query\Exceptions\DeleteMultipleNotSupported;
+use Phalcon\Mvc\Model\Query\Exceptions\DuplicateAlias;
+use Phalcon\Mvc\Model\Query\Exceptions\EmptyArrayPlaceholderValue;
+use Phalcon\Mvc\Model\Query\Exceptions\InsertColumnCountMismatch;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidCachedResultset;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidCachingOptions;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidColumnDefinition;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidInjectedManager;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidInjectedMetadata;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidQueryCacheService;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidResultsetClass;
+use Phalcon\Mvc\Model\Query\Exceptions\InvalidResultsetRowClass;
+use Phalcon\Mvc\Model\Query\Exceptions\JoinAliasAlreadyUsed;
+use Phalcon\Mvc\Model\Query\Exceptions\JoinFieldCountMismatch;
+use Phalcon\Mvc\Model\Query\Exceptions\MissingCacheKey;
+use Phalcon\Mvc\Model\Query\Exceptions\MissingMetaData;
+use Phalcon\Mvc\Model\Query\Exceptions\MissingModelAttribute;
+use Phalcon\Mvc\Model\Query\Exceptions\MissingModelsManager;
+use Phalcon\Mvc\Model\Query\Exceptions\MixedDatabaseSystems;
+use Phalcon\Mvc\Model\Query\Exceptions\ModelsListNotLoaded;
+use Phalcon\Mvc\Model\Query\Exceptions\ModelSourceNotFound;
+use Phalcon\Mvc\Model\Query\Exceptions\MultipleSqlStatementsNotSupported;
+use Phalcon\Mvc\Model\Query\Exceptions\NoModelForAlias;
+use Phalcon\Mvc\Model\Query\Exceptions\PhqlColumnNotInMap;
+use Phalcon\Mvc\Model\Query\Exceptions\ReadConnectionMissing;
+use Phalcon\Mvc\Model\Query\Exceptions\RelationshipNotFound;
+use Phalcon\Mvc\Model\Query\Exceptions\ResultsetClassNotFound;
+use Phalcon\Mvc\Model\Query\Exceptions\ResultsetNonCacheable;
+use Phalcon\Mvc\Model\Query\Exceptions\ResultsetRowClassNotFound;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownBindType;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownColumnType;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownJoinType;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownModelOrAlias;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownPhqlExpression;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownPhqlExpressionType;
+use Phalcon\Mvc\Model\Query\Exceptions\UnknownPhqlStatement;
+use Phalcon\Mvc\Model\Query\Exceptions\UpdateMultipleNotSupported;
+use Phalcon\Mvc\Model\Query\Exceptions\WriteConnectionMissing;
 use Phalcon\Mvc\Model\Query\Status;
 use Phalcon\Mvc\Model\Resultset\Complex;
 use Phalcon\Mvc\Model\Query\StatusInterface;
@@ -23,6 +74,7 @@ use Phalcon\Mvc\Model\Resultset\Simple;
 use Phalcon\Di\InjectionAwareInterface;
 use Phalcon\Db\DialectInterface;
 use Phalcon\Mvc\Model\Query\Lang;
+use Phalcon\Support\Settings;
 
 /**
  * Phalcon\Mvc\Model\Query
@@ -53,17 +105,17 @@ use Phalcon\Mvc\Model\Query\Lang;
  * // $di needs to have the service "db" registered for this to work
  * $di = Phalcon\Di\FactoryDefault::getDefault();
  *
- * $phql = 'SELECT FROM robot';
+ * $phql = 'SELECT FROM Invoices';
  *
  * $myTransaction = new Transaction($di);
  * $myTransaction->begin();
  *
- * $newRobot = new Robot();
- * $newRobot->setTransaction($myTransaction);
- * $newRobot->type = "mechanical";
- * $newRobot->name = "Astro Boy";
- * $newRobot->year = 1952;
- * $newRobot->save();
+ * $newInvoice = new Invoices();
+ * $newInvoice->setTransaction($myTransaction);
+ * $newInvoice->inv_status_flag = 1;
+ * $newInvoice->inv_title = "Test Invoice";
+ * $newInvoice->inv_total = 100;
+ * $newInvoice->save();
  *
  * $queryWithTransaction = new Query($phql, $di);
  * $queryWithTransaction->setTransaction($myTransaction);
@@ -76,13 +128,25 @@ use Phalcon\Mvc\Model\Query\Lang;
  */
 class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionAwareInterface
 {
-    const TYPE_DELETE = 303;
+    /**
+     * @var int
+     */
+    const int TYPE_DELETE = 303;
 
-    const TYPE_INSERT = 306;
+    /**
+     * @var int
+     */
+    const int TYPE_INSERT = 306;
 
-    const TYPE_SELECT = 309;
+    /**
+     * @var int
+     */
+    const int TYPE_SELECT = 309;
 
-    const TYPE_UPDATE = 300;
+    /**
+     * @var int
+     */
+    const int TYPE_UPDATE = 300;
 
     /**
      * @var array
@@ -126,6 +190,11 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     protected $intermediate;
 
     /**
+     * @var array|null
+     */
+    protected static $internalPhqlCache;
+
+    /**
      * @var \Phalcon\Mvc\Model\ManagerInterface|null
      */
     protected $manager = null;
@@ -154,6 +223,11 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * @var string|null
      */
     protected $phql = null;
+
+    /**
+     * @var string
+     */
+    protected $resultsetRowClass = '';
 
     /**
      * @var bool
@@ -186,16 +260,6 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     protected $sqlModelsAliases = [];
 
     /**
-     * @var int|null
-     */
-    protected $type;
-
-    /**
-     * @var bool
-     */
-    protected $uniqueRow = false;
-
-    /**
      * TransactionInterface so that the query can wrap a transaction
      * around batch updates and intermediate selects within the transaction.
      * however if a model got a transaction set inside it will use the local
@@ -206,9 +270,14 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     protected $transaction = null;
 
     /**
-     * @var array|null
+     * @var int|null
      */
-    protected static $internalPhqlCache;
+    protected $type;
+
+    /**
+     * @var bool
+     */
+    protected $uniqueRow = false;
 
     /**
      * Phalcon\Mvc\Model\Query constructor
@@ -217,7 +286,7 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * @param DiInterface|null $container
      * @param array $options
      */
-    public function __construct(string $phql = null, \Phalcon\Di\DiInterface $container = null, array $options = [])
+    public function __construct(?string $phql = null, ?\Phalcon\Di\DiInterface $container = null, array $options = [])
     {
     }
 
@@ -252,24 +321,6 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     }
 
     /**
-     * Returns the current cache backend instance
-     *
-     * @return AdapterInterface
-     */
-    public function getCache(): AdapterInterface
-    {
-    }
-
-    /**
-     * Returns the current cache options
-     *
-     * @return array
-     */
-    public function getCacheOptions(): array
-    {
-    }
-
-    /**
      * Returns default bind params
      *
      * @return array
@@ -284,6 +335,24 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * @return array
      */
     public function getBindTypes(): array
+    {
+    }
+
+    /**
+     * Returns the current cache backend instance
+     *
+     * @return AdapterInterface
+     */
+    public function getCache(): AdapterInterface
+    {
+    }
+
+    /**
+     * Returns the current cache options
+     *
+     * @return array
+     */
+    public function getCacheOptions(): array
     {
     }
 
@@ -317,12 +386,27 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     }
 
     /**
-     * Returns the SQL to be generated by the internal PHQL (only works in
-     * SELECT statements)
+     * Returns an associative array with the SQL to be generated by the internal PHQL,
+     * and arrays with bound parameters and their types (only works in SELECT statements).
+     *
+     * ```php
+     * [
+     *     'sql' => 'SELECT FROM co_invoices WHERE inv_cst_id = :cst_id',
+     *     'bind' => ['cst_id' => 123],
+     *     'bindTypes => ['cst_id' => 1] // 1 corresponds to int
+     * ]
+     * ```
      *
      * @return array
      */
     public function getSql(): array
+    {
+    }
+
+    /**
+     * @return TransactionInterface|null
+     */
+    public function getTransaction(): TransactionInterface|null
     {
     }
 
@@ -336,19 +420,23 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     }
 
     /**
+     * Returns the class that will be used to hydrate rows that are not mapped
+     * to a model (custom columns/joins). An empty string means the default
+     * Phalcon\Mvc\Model\Row is used.
+     *
+     * @return string
+     */
+    public function getResultsetRowClass(): string
+    {
+    }
+
+    /**
      * Check if the query is programmed to get only the first row in the
      * resultset
      *
      * @return bool
      */
     public function getUniqueRow(): bool
-    {
-    }
-
-    /**
-     * @return TransactionInterface|null
-     */
-    public function getTransaction(): TransactionInterface|null
     {
     }
 
@@ -432,6 +520,18 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * @return QueryInterface
      */
     public function setType(int $type): QueryInterface
+    {
+    }
+
+    /**
+     * Sets the class used to hydrate rows that are not mapped to a model
+     * (custom columns/joins). The class must be a subclass of
+     * Phalcon\Mvc\Model\Row.
+     *
+     * @param string $resultsetRowClass
+     * @return QueryInterface
+     */
+    public function setResultsetRowClass(string $resultsetRowClass): QueryInterface
     {
     }
 
@@ -551,16 +651,6 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
     }
 
     /**
-     * Returns a processed limit clause for a SELECT statement
-     *
-     * @param array $limitClause
-     * @return array
-     */
-    final protected function getLimitClause(array $limitClause): array
-    {
-    }
-
-    /**
      * Resolves a JOIN clause checking if the associated models exist
      *
      * @param ManagerInterface $manager
@@ -589,6 +679,16 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * @return array
      */
     final protected function getJoins(array $select): array
+    {
+    }
+
+    /**
+     * Returns a processed limit clause for a SELECT statement
+     *
+     * @param array $limitClause
+     * @return array
+     */
+    final protected function getLimitClause(array $limitClause): array
     {
     }
 
@@ -632,12 +732,12 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * inside the query object
      *
      * @param \Phalcon\Mvc\ModelInterface $model
-     * @param array $intermediate
+     * @param array|null $intermediate
      * @param array $bindParams
      * @param array $bindTypes
      * @return AdapterInterface
      */
-    protected function getReadConnection(\Phalcon\Mvc\ModelInterface $model, array $intermediate = null, array $bindParams = [], array $bindTypes = []): AdapterInterface
+    protected function getReadConnection(\Phalcon\Mvc\ModelInterface $model, ?array $intermediate = null, array $bindParams = [], array $bindTypes = []): AdapterInterface
     {
     }
 
@@ -695,12 +795,12 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * inside the query object
      *
      * @param \Phalcon\Mvc\ModelInterface $model
-     * @param array $intermediate
+     * @param array|null $intermediate
      * @param array $bindParams
      * @param array $bindTypes
      * @return AdapterInterface
      */
-    protected function getWriteConnection(\Phalcon\Mvc\ModelInterface $model, array $intermediate = null, array $bindParams = [], array $bindTypes = []): AdapterInterface
+    protected function getWriteConnection(\Phalcon\Mvc\ModelInterface $model, ?array $intermediate = null, array $bindParams = [], array $bindTypes = []): AdapterInterface
     {
     }
 
@@ -710,7 +810,7 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      *
      * @return array
      */
-    final protected function _prepareDelete(): array
+    final protected function prepareDelete(): array
     {
     }
 
@@ -720,7 +820,7 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      *
      * @return array
      */
-    final protected function _prepareInsert(): array
+    final protected function prepareInsert(): array
     {
     }
 
@@ -731,7 +831,7 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      * @param bool $merge
      * @return array
      */
-    final protected function _prepareSelect($ast = null, bool $merge = false): array
+    final protected function prepareSelect($ast = null, bool $merge = false): array
     {
     }
 
@@ -741,7 +841,21 @@ class Query implements \Phalcon\Mvc\Model\QueryInterface, \Phalcon\Di\InjectionA
      *
      * @return array
      */
-    final protected function _prepareUpdate(): array
+    final protected function prepareUpdate(): array
+    {
+    }
+
+    /**
+     * Refreshes the schema/source of every model referenced in a cached
+     * intermediate representation. The PHQL cache is keyed by the PHQL
+     * string only, so a model that switches its schema or source at
+     * runtime (for instance via setSchema()/setSource() in initialize())
+     * would otherwise see the value frozen at first parse. See #17020.
+     *
+     * @param array $irPhql
+     * @return array
+     */
+    final protected function refreshSchemasInIntermediate(array $irPhql): array
     {
     }
 }

@@ -21,8 +21,10 @@ class Version
      * echo (new Phalcon\Support\Version())
      *          ->getPart(Phalcon\Support\Version::VERSION_MAJOR);
      * ```
+     *
+     * @var int
      */
-    const VERSION_MAJOR = 0;
+    const int VERSION_MAJOR = 0;
 
     /**
      * The constant referencing the major version. Returns 1
@@ -31,8 +33,10 @@ class Version
      * echo (new Phalcon\Support\Version())
      *          ->getPart(Phalcon\Support\Version::VERSION_MEDIUM);
      * ```
+     *
+     * @var int
      */
-    const VERSION_MEDIUM = 1;
+    const int VERSION_MEDIUM = 1;
 
     /**
      * The constant referencing the major version. Returns 2
@@ -41,8 +45,10 @@ class Version
      * echo (new Phalcon\Support\Version())
      *          ->getPart(Phalcon\Support\Version::VERSION_MINOR);
      * ```
+     *
+     * @var int
      */
-    const VERSION_MINOR = 2;
+    const int VERSION_MINOR = 2;
 
     /**
      * The constant referencing the major version. Returns 3
@@ -51,8 +57,10 @@ class Version
      * echo (new Phalcon\Support\Version())
      *          ->getPart(Phalcon\Support\Version::VERSION_SPECIAL);
      * ```
+     *
+     * @var int
      */
-    const VERSION_SPECIAL = 3;
+    const int VERSION_SPECIAL = 3;
 
     /**
      * The constant referencing the major version. Returns 4
@@ -61,35 +69,11 @@ class Version
      * echo (new Phalcon\Support\Version())
      *          ->getPart(Phalcon\Support\Version::VERSION_SPECIAL_NUMBER);
      * ```
-     */
-    const VERSION_SPECIAL_NUMBER = 4;
-
-
-    /**
-     * Area where the version number is set. The format is as follows:
-     * ABBCCDE
      *
-     * A - Major version
-     * B - Med version (two digits)
-     * C - Min version (two digits)
-     * D - Special release: 1 = alpha, 2 = beta, 3 = RC, 4 = stable
-     * E - Special release version i.e. RC1, Beta2 etc.
-     *
-     * @return array
+     * @var int
      */
-    protected function getVersion(): array
-    {
-    }
+    const int VERSION_SPECIAL_NUMBER = 4;
 
-    /**
-     * Translates a number to a special release.
-     *
-     * @param int $special
-     * @return string
-     */
-    final protected function getSpecial(int $special): string
-    {
-    }
 
     /**
      * Returns the active version (string)
@@ -129,6 +113,32 @@ class Version
      * @return string
      */
     public function getPart(int $part): string
+    {
+    }
+
+    /**
+     * Translates a number to a special release.
+     *
+     * @param int $special
+     * @return string
+     */
+    final protected function getSpecial(int $special): string
+    {
+    }
+
+    /**
+     * Area where the version number is set. The format is as follows:
+     * ABBCCDE
+     *
+     * A - Major version
+     * B - Med version (two digits)
+     * C - Min version (two digits)
+     * D - Special release: 1 = alpha, 2 = beta, 3 = RC, 4 = stable
+     * E - Special release version i.e. RC1, Beta2 etc.
+     *
+     * @return int[]
+     */
+    protected function getVersion(): array
     {
     }
 }

@@ -9,12 +9,24 @@
  */
 namespace Phalcon\Db\Dialect;
 
+use Phalcon\Db\CheckInterface;
 use Phalcon\Db\Column;
-use Phalcon\Db\Exception;
-use Phalcon\Db\IndexInterface;
+use Phalcon\Db\ColumnInterface;
 use Phalcon\Db\Dialect;
 use Phalcon\Db\DialectInterface;
-use Phalcon\Db\ColumnInterface;
+use Phalcon\Db\Exception;
+use Phalcon\Db\Exceptions\MissingDefinitionKey;
+use Phalcon\Db\Exceptions\ReturningRequiresColumn;
+use Phalcon\Db\Exceptions\SqliteAlterCheckNotSupported;
+use Phalcon\Db\Exceptions\SqliteAlterColumnNotSupported;
+use Phalcon\Db\Exceptions\SqliteAlterForeignKeyNotSupported;
+use Phalcon\Db\Exceptions\SqliteAlterPrimaryKeyNotSupported;
+use Phalcon\Db\Exceptions\SqliteDropCheckNotSupported;
+use Phalcon\Db\Exceptions\SqliteDropForeignKeyNotSupported;
+use Phalcon\Db\Exceptions\SqliteDropPrimaryKeyNotSupported;
+use Phalcon\Db\Exceptions\UnrecognizedDataType;
+use Phalcon\Db\IndexInterface;
+use Phalcon\Db\RawValue;
 use Phalcon\Db\ReferenceInterface;
 
 /**
@@ -28,6 +40,11 @@ class Sqlite extends Dialect
     protected $escapeChar = '\\\"';
 
     /**
+     * @var array
+     */
+    protected $supportedOperators = ['||', '->', '->>'];
+
+    /**
      * Generates SQL to add a column to a table
      *
      * @param string $tableName
@@ -36,6 +53,19 @@ class Sqlite extends Dialect
      * @return string
      */
     public function addColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column): string
+    {
+    }
+
+    /**
+     * SQLite cannot ALTER an existing table to add a CHECK constraint;
+     * the constraint must be declared at CREATE TABLE time.
+     *
+     * @param string $tableName
+     * @param string $schemaName
+     * @param \Phalcon\Db\CheckInterface $check
+     * @return string
+     */
+    public function addCheck(string $tableName, string $schemaName, \Phalcon\Db\CheckInterface $check): string
     {
     }
 
@@ -92,10 +122,10 @@ class Sqlite extends Dialect
      *
      * @param string $viewName
      * @param array $definition
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return string
      */
-    public function createView(string $viewName, array $definition, string $schemaName = null): string
+    public function createView(string $viewName, array $definition, ?string $schemaName = null): string
     {
     }
 
@@ -109,10 +139,10 @@ class Sqlite extends Dialect
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return string
      */
-    public function describeColumns(string $table, string $schema = null): string
+    public function describeColumns(string $table, ?string $schema = null): string
     {
     }
 
@@ -130,10 +160,10 @@ class Sqlite extends Dialect
      * Generates SQL to query indexes on a table
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return string
      */
-    public function describeIndexes(string $table, string $schema = null): string
+    public function describeIndexes(string $table, ?string $schema = null): string
     {
     }
 
@@ -141,15 +171,20 @@ class Sqlite extends Dialect
      * Generates SQL to query foreign keys on a table
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return string
      */
-    public function describeReferences(string $table, string $schema = null): string
+    public function describeReferences(string $table, ?string $schema = null): string
     {
     }
 
     /**
-     * Generates SQL to delete a column from a table
+     * Generates SQL to delete a column from a table.
+     *
+     * SQLite 3.35+ supports `ALTER TABLE ... DROP COLUMN ...` directly. On
+     * older versions the server rejects the statement at execution time;
+     * cphalcon no longer pre-empts that rejection at the dialect level so
+     * callers on 3.35+ can use the feature.
      *
      * @param string $tableName
      * @param string $schemaName
@@ -157,6 +192,18 @@ class Sqlite extends Dialect
      * @return string
      */
     public function dropColumn(string $tableName, string $schemaName, string $columnName): string
+    {
+    }
+
+    /**
+     * SQLite cannot DROP a CHECK constraint from an existing table.
+     *
+     * @param string $tableName
+     * @param string $schemaName
+     * @param string $checkName
+     * @return string
+     */
+    public function dropCheck(string $tableName, string $schemaName, string $checkName): string
     {
     }
 
@@ -199,11 +246,11 @@ class Sqlite extends Dialect
      * Generates SQL to drop a table
      *
      * @param string $tableName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @param bool $ifExists
      * @return string
      */
-    public function dropTable(string $tableName, string $schemaName = null, bool $ifExists = true): string
+    public function dropTable(string $tableName, ?string $schemaName = null, bool $ifExists = true): string
     {
     }
 
@@ -211,22 +258,25 @@ class Sqlite extends Dialect
      * Generates SQL to drop a view
      *
      * @param string $viewName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @param bool $ifExists
      * @return string
      */
-    public function dropView(string $viewName, string $schemaName = null, bool $ifExists = true): string
+    public function dropView(string $viewName, ?string $schemaName = null, bool $ifExists = true): string
     {
     }
 
     /**
-     * Returns a SQL modified with a FOR UPDATE clause. For SQLite it returns
-     * the original query
+     * Returns a SQL modified with a FOR UPDATE clause. SQLite has no
+     * row-level locking, so the original query is returned unchanged
+     * regardless of the `modifier` argument (`NOWAIT` / `SKIP LOCKED` are
+     * silently ignored).
      *
      * @param string $sqlQuery
+     * @param string $modifier
      * @return string
      */
-    public function forUpdate(string $sqlQuery): string
+    public function forUpdate(string $sqlQuery, string $modifier = ''): string
     {
     }
 
@@ -250,11 +300,11 @@ class Sqlite extends Dialect
      * ```
      *
      * @param string $table
-     * @param string $schema
-     * @param string $keyName
+     * @param string|null $schema
+     * @param string|null $keyName
      * @return string
      */
-    public function listIndexesSql(string $table, string $schema = null, string $keyName = null): string
+    public function listIndexesSql(string $table, ?string $schema = null, ?string $keyName = null): string
     {
     }
 
@@ -267,20 +317,20 @@ class Sqlite extends Dialect
      * );
      * ```
      *
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return string
      */
-    public function listTables(string $schemaName = null): string
+    public function listTables(?string $schemaName = null): string
     {
     }
 
     /**
      * Generates the SQL to list all views of a schema or user
      *
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return string
      */
-    public function listViews(string $schemaName = null): string
+    public function listViews(?string $schemaName = null): string
     {
     }
 
@@ -290,21 +340,55 @@ class Sqlite extends Dialect
      * @param string $tableName
      * @param string $schemaName
      * @param \Phalcon\Db\ColumnInterface $column
-     * @param \Phalcon\Db\ColumnInterface $currentColumn
+     * @param \Phalcon\Db\ColumnInterface|null $currentColumn
      * @return string
      */
-    public function modifyColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column, \Phalcon\Db\ColumnInterface $currentColumn = null): string
+    public function modifyColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column, ?\Phalcon\Db\ColumnInterface $currentColumn = null): string
     {
     }
 
     /**
-     * Returns a SQL modified a shared lock statement. For now this method
-     * returns the original query
+     * Appends a `RETURNING` clause to the supplied INSERT/UPDATE/DELETE
+     * statement. Supported by SQLite 3.35+. Pass `[""]` for `RETURNING`,
+     * or a list of column names.
      *
      * @param string $sqlQuery
+     * @param array $columns
      * @return string
      */
-    public function sharedLock(string $sqlQuery): string
+    public function returning(string $sqlQuery, array $columns): string
+    {
+    }
+
+    /**
+     * SQLite cannot modify existing columns or add/drop foreign keys, primary
+     * keys, or check constraints through `ALTER TABLE`; those operations throw
+     * a dedicated `SqliteNotSupported` exception.
+     *
+     * @return bool
+     */
+    public function supportsAlterTable(): bool
+    {
+    }
+
+    /**
+     * SQLite (3.35+) supports the `RETURNING` clause.
+     *
+     * @return bool
+     */
+    public function supportsReturning(): bool
+    {
+    }
+
+    /**
+     * SQLite has no row-level shared-lock construct, so the original query
+     * is returned unchanged regardless of the `modifier` argument.
+     *
+     * @param string $sqlQuery
+     * @param string $modifier
+     * @return string
+     */
+    public function sharedLock(string $sqlQuery, string $modifier = ''): string
     {
     }
 
@@ -318,10 +402,10 @@ class Sqlite extends Dialect
      * ```
      *
      * @param string $tableName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return string
      */
-    public function tableExists(string $tableName, string $schemaName = null): string
+    public function tableExists(string $tableName, ?string $schemaName = null): string
     {
     }
 
@@ -329,10 +413,10 @@ class Sqlite extends Dialect
      * Generates the SQL to describe the table creation options
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return string
      */
-    public function tableOptions(string $table, string $schema = null): string
+    public function tableOptions(string $table, ?string $schema = null): string
     {
     }
 
@@ -351,10 +435,10 @@ class Sqlite extends Dialect
      * Generates SQL checking for the existence of a schema.view
      *
      * @param string $viewName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return string
      */
-    public function viewExists(string $viewName, string $schemaName = null): string
+    public function viewExists(string $viewName, ?string $schemaName = null): string
     {
     }
 }

@@ -9,42 +9,39 @@
  */
 namespace Phalcon\Application;
 
+use Closure;
+use Phalcon\Application\Exceptions\ModuleNotRegistered;
+use Phalcon\Contracts\Application\ApplicationTypes;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\Injectable;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Events\Traits\EventsAwareTrait;
 
 /**
  * Base class for Phalcon\Cli\Console and Phalcon\Mvc\Application.
+ *
+ * @phpstan-import-type application_module_definition from ApplicationTypes
+ * @phpstan-import-type application_modules from ApplicationTypes
  */
 abstract class AbstractApplication extends Injectable implements \Phalcon\Events\EventsAwareInterface
 {
-    /**
-     * @var DiInterface|null
-     */
-    protected $container = null;
+    use \Phalcon\Events\Traits\EventsAwareTrait;
+
+
+    protected string $defaultModule = '';
 
     /**
-     * @var string
+     * @phpstan-var application_modules
      */
-    protected $defaultModule = '';
+    protected array $modules = [];
 
     /**
-     * @var ManagerInterface|null
-     */
-    protected $eventsManager = null;
-
-    /**
-     * @var array
-     */
-    protected $modules = [];
-
-    /**
-     * Phalcon\AbstractApplication constructor
+     * AbstractApplication constructor.
      *
-     * @param \Phalcon\Di\DiInterface $container
+     * @param \Phalcon\Di\DiInterface|null $container
      */
-    public function __construct(\Phalcon\Di\DiInterface $container = null)
+    public function __construct(?\Phalcon\Di\DiInterface $container = null)
     {
     }
 
@@ -58,27 +55,20 @@ abstract class AbstractApplication extends Injectable implements \Phalcon\Events
     }
 
     /**
-     * Returns the internal event manager
-     *
-     * @return ManagerInterface|null
-     */
-    public function getEventsManager(): ManagerInterface|null
-    {
-    }
-
-    /**
      * Gets the module definition registered in the application via module name
      *
      * @param string $name *
-     * @return array|mixed
+     * @phpstan-return Closure|application_module_definition
+     * @return mixed
      */
-    public function getModule(string $name): object|array
+    public function getModule(string $name): mixed
     {
     }
 
     /**
      * Return the modules registered in the application
      *
+     * @phpstan-return application_modules
      * @return array
      */
     public function getModules(): array
@@ -103,21 +93,23 @@ abstract class AbstractApplication extends Injectable implements \Phalcon\Events
      * );
      * ```
      *
+     * @phpstan-param application_modules $modules
      * @param array $modules
      * @param bool $merge
-     * @return AbstractApplication
+     * @return static
      */
-    public function registerModules(array $modules, bool $merge = false): AbstractApplication
+    public function registerModules(array $modules, bool $merge = false): static
     {
     }
 
     /**
-     * Sets the module name to be used if the router doesn't return a valid module
+     * Sets the module name to be used if the router does not return a valid
+     * module
      *
      * @param string $defaultModule
-     * @return AbstractApplication
+     * @return static
      */
-    public function setDefaultModule(string $defaultModule): AbstractApplication
+    public function setDefaultModule(string $defaultModule): static
     {
     }
 

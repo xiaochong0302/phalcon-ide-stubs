@@ -9,7 +9,12 @@
  */
 namespace Phalcon\Html;
 
+use Phalcon\Html\Escaper\AttributeEscaper;
+use Phalcon\Html\Escaper\CssEscaper;
 use Phalcon\Html\Escaper\EscaperInterface;
+use Phalcon\Html\Escaper\HtmlEscaper;
+use Phalcon\Html\Escaper\JsEscaper;
+use Phalcon\Html\Escaper\UrlEscaper;
 
 /**
  * Phalcon\Html\Escaper
@@ -17,57 +22,83 @@ use Phalcon\Html\Escaper\EscaperInterface;
  * Escapes different kinds of text securing them. By using this component you
  * may prevent XSS attacks.
  *
+ * The class is a façade over five per-context escapers (`HtmlEscaper`,
+ * `AttributeEscaper`, `CssEscaper`, `JsEscaper`, `UrlEscaper`). Each can be
+ * retrieved via the matching `getXxxEscaper()` accessor and substituted via
+ * the matching `setXxxEscaper()` setter. The legacy `setEncoding`,
+ * `setFlags`, and `setDoubleEncode` continue to fan out to all sub-objects
+ * so existing code keeps working.
+ *
  * This component only works with UTF-8. The PREG extension needs to be compiled
  * with UTF-8 support.
  *
  * ```php
  * $escaper = new \Phalcon\Html\Escaper();
  *
- * $escaped = $escaper->escapeCss("font-family: <Verdana>");
+ * $escaped = $escaper->css("font-family: <Verdana>");
  *
  * echo $escaped; // font\2D family\3A \20 \3C Verdana\3E
  * ```
+ *
+ * @property AttributeEscaper $attributeEscaper
+ * @property CssEscaper       $cssEscaper
+ * @property HtmlEscaper      $htmlEscaper
+ * @property JsEscaper        $jsEscaper
+ * @property UrlEscaper       $urlEscaper
  */
 class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
 {
     /**
-     * @var bool
+     * @var AttributeEscaper
      */
-    protected $doubleEncode = true;
+    protected $attributeEscaper;
 
     /**
-     * @var string
+     * @var CssEscaper
      */
-    protected $encoding = 'utf-8';
+    protected $cssEscaper;
 
     /**
-     * ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401
-     *
-     * @var int
+     * @var HtmlEscaper
      */
-    protected $flags = 11;
+    protected $htmlEscaper;
 
     /**
-     * Escapes a HTML attribute string or array
+     * @var JsEscaper
+     */
+    protected $jsEscaper;
+
+    /**
+     * @var UrlEscaper
+     */
+    protected $urlEscaper;
+
+    /**
+     * Constructor. Accepts the legacy scalar params for backward compatibility
+     * and fans them out to every sub-escaper so existing code keeps working.
      *
-     * If the input is an array, the keys are the attribute names and the
-     * values are attribute values. If a value is boolean (true/false) then
-     * the attribute will have no value:
-     * `['disabled' => true]` -> `'disabled``
-     *
-     * The resulting string will have attribute pairs separated by a space.
+     * @param string $encoding
+     * @param int $flags
+     * @param bool $doubleEncode
+     */
+    public function __construct(string $encoding = 'utf-8', int $flags = 11, bool $doubleEncode = true)
+    {
+    }
+
+    /**
+     * Escapes a HTML attribute string or array. Delegates to the configured
+     * `AttributeEscaper`.
      *
      * @param array|string $input
      *
      * @return string
      */
-    public function attributes($input): string
+    public function attributes($input = null): string
     {
     }
 
     /**
-     * Escape CSS strings by replacing non-alphanumeric chars by their
-     * hexadecimal escaped representation
+     * Escape CSS strings. Delegates to the configured `CssEscaper`.
      *
      * @param string $input
      *
@@ -78,9 +109,7 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Detect the character encoding of a string to be handled by an encoder.
-     * Special-handling for chr(172) and chr(128) to chr(159) which fail to be
-     * detected by mb_detect_encoding()
+     * Detects the character encoding of a string. Delegates to `HtmlEscaper`.
      *
      * @param string $input
      *
@@ -91,9 +120,6 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Escape CSS strings by replacing non-alphanumeric chars by their
-     * hexadecimal escaped representation
-     *
      * @param string $input
      *
      * @return string
@@ -104,9 +130,26 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Escape JavaScript strings by replacing non-alphanumeric chars by their
-     * hexadecimal escaped representation
+     * @param string|null $input
      *
+     * @return string
+     * @deprecated
+     */
+    public function escapeHtml(?string $input = null): string
+    {
+    }
+
+    /**
+     * @param string|null $input
+     *
+     * @return string
+     * @deprecated
+     */
+    public function escapeHtmlAttr(?string $input = null): string
+    {
+    }
+
+    /**
      * @param string $input
      *
      * @return string
@@ -117,32 +160,6 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Escapes a HTML string. Internally uses htmlspecialchars
-     *
-     * @param string|null $input
-     *
-     * @return string
-     * @deprecated
-     */
-    public function escapeHtml(string $input = null): string
-    {
-    }
-
-    /**
-     * Escapes a HTML attribute string
-     *
-     * @param string|null $input
-     *
-     * @return string
-     * @deprecated
-     */
-    public function escapeHtmlAttr(string $input = null): string
-    {
-    }
-
-    /**
-     * Escapes a URL. Internally uses rawurlencode
-     *
      * @param string $input
      *
      * @return string
@@ -153,6 +170,22 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
+     * @return AttributeEscaper
+     */
+    public function getAttributeEscaper(): AttributeEscaper
+    {
+    }
+
+    /**
+     * @return CssEscaper
+     */
+    public function getCssEscaper(): CssEscaper
+    {
+    }
+
+    /**
+     * Returns the encoding from the HtmlEscaper.
+     *
      * @return string
      */
     public function getEncoding(): string
@@ -160,6 +193,8 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
+     * Returns the flags from the HtmlEscaper.
+     *
      * @return int
      */
     public function getFlags(): int
@@ -167,19 +202,39 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Escapes a HTML string. Internally uses htmlspecialchars
+     * @return HtmlEscaper
+     */
+    public function getHtmlEscaper(): HtmlEscaper
+    {
+    }
+
+    /**
+     * @return JsEscaper
+     */
+    public function getJsEscaper(): JsEscaper
+    {
+    }
+
+    /**
+     * @return UrlEscaper
+     */
+    public function getUrlEscaper(): UrlEscaper
+    {
+    }
+
+    /**
+     * Escapes a HTML string. Delegates to the configured `HtmlEscaper`.
      *
      * @param string|null $input
      *
      * @return string
      */
-    public function html(string $input = null): string
+    public function html(?string $input = null): string
     {
     }
 
     /**
-     * Escape javascript strings by replacing non-alphanumeric chars by their
-     * hexadecimal escaped representation
+     * Escape javascript strings. Delegates to the configured `JsEscaper`.
      *
      * @param string $input
      *
@@ -190,7 +245,7 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Utility to normalize a string's encoding to UTF-32.
+     * Normalizes a string's encoding to UTF-32. Delegates to `HtmlEscaper`.
      *
      * @param string $input
      *
@@ -201,99 +256,104 @@ class Escaper implements \Phalcon\Html\Escaper\EscaperInterface
     }
 
     /**
-     * Sets the double_encode to be used by the escaper
+     * @param AttributeEscaper $escaper
      *
-     * ```php
-     * $escaper->setDoubleEncode(false);
-     * ```
+     * @return static
+     */
+    public function setAttributeEscaper(\Phalcon\Html\Escaper\AttributeEscaper $escaper): static
+    {
+    }
+
+    /**
+     * @param CssEscaper $escaper
+     *
+     * @return static
+     */
+    public function setCssEscaper(\Phalcon\Html\Escaper\CssEscaper $escaper): static
+    {
+    }
+
+    /**
+     * Sets the double_encode flag. Fans out to all sub-objects.
      *
      * @param bool $doubleEncode
-     * @return Escaper
+     * @return static
      */
-    public function setDoubleEncode(bool $doubleEncode): Escaper
+    public function setDoubleEncode(bool $doubleEncode): static
     {
     }
 
     /**
-     * Sets the encoding to be used by the escaper
-     *
-     * ```php
-     * $escaper->setEncoding("utf-8");
-     * ```
+     * Sets the encoding. Fans out to all sub-objects.
      *
      * @param string $encoding
-     * @return EscaperInterface
+     * @return static
      */
-    public function setEncoding(string $encoding): EscaperInterface
+    public function setEncoding(string $encoding): static
     {
     }
 
     /**
-     * Sets the HTML quoting type for htmlspecialchars
-     *
-     * ```php
-     * $escaper->setFlags(ENT_XHTML);
-     * ```
+     * Sets the htmlspecialchars flags. Fans out to all sub-objects.
      *
      * @param int $flags
-     * @return EscaperInterface
+     * @return static
      */
-    public function setFlags(int $flags): EscaperInterface
+    public function setFlags(int $flags): static
     {
     }
 
     /**
-     * Sets the HTML quoting type for htmlspecialchars
+     * @param HtmlEscaper $escaper
+     *
+     * @return static
+     */
+    public function setHtmlEscaper(\Phalcon\Html\Escaper\HtmlEscaper $escaper): static
+    {
+    }
+
+    /**
+     * Sets the HTML quoting type for htmlspecialchars.
      *
      * ```php
      * $escaper->setHtmlQuoteType(ENT_XHTML);
      * ```
      *
      * @param int $flags
+     *
      * @deprecated
-     * @return EscaperInterface
+     * @return static
      */
-    public function setHtmlQuoteType(int $flags): EscaperInterface
+    public function setHtmlQuoteType(int $flags): static
     {
     }
 
     /**
-     * Escapes a URL. Internally uses rawurlencode
+     * @param JsEscaper $escaper
+     *
+     * @return static
+     */
+    public function setJsEscaper(\Phalcon\Html\Escaper\JsEscaper $escaper): static
+    {
+    }
+
+    /**
+     * @param UrlEscaper $escaper
+     *
+     * @return static
+     */
+    public function setUrlEscaper(\Phalcon\Html\Escaper\UrlEscaper $escaper): static
+    {
+    }
+
+    /**
+     * Escapes a URL. Delegates to the configured `UrlEscaper`.
      *
      * @param string $input
      *
      * @return string
      */
     public function url(string $input): string
-    {
-    }
-
-    /**
-     * Proxy method for testing
-     *
-     * @param string $input
-     *
-     * @return string
-     */
-    protected function phpHtmlSpecialChars(string $input): string
-    {
-    }
-
-    /**
-     * @param string $input
-     *
-     * @return string
-     */
-    private function doEscapeCss(string $input): string
-    {
-    }
-
-    /**
-     * @param string $input
-     *
-     * @return string
-     */
-    private function doEscapeJs(string $input): string
     {
     }
 }

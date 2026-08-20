@@ -9,17 +9,21 @@
  */
 namespace Phalcon\Support\Helper\Str;
 
+use Phalcon\Traits\Support\Helper\Str\UncamelizeTrait;
+
 /**
  * Converts strings to non camelized style
  */
 class Uncamelize
 {
+    use \Phalcon\Traits\Support\Helper\Str\UncamelizeTrait;
+
+
+
     /**
      * @param string $text
-     * @param string $delimiters
-     *
-     * @return string
      * @param string $delimiter
+     * @return string
      */
     public function __invoke(string $text, string $delimiter = '_'): string
     {

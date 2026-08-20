@@ -9,11 +9,17 @@
  */
 namespace Phalcon\Support\Helper\Str;
 
+use Phalcon\Traits\Support\Helper\Str\CamelizeTrait;
+
 /**
  * Converts strings to upperCamelCase or lowerCamelCase
  */
-class Camelize extends \Phalcon\Support\Helper\Str\PascalCase
+class Camelize
 {
+    use \Phalcon\Traits\Support\Helper\Str\CamelizeTrait;
+
+
+
     /**
      * @param string      $text
      * @param string|null $delimiters
@@ -21,7 +27,7 @@ class Camelize extends \Phalcon\Support\Helper\Str\PascalCase
      *
      * @return string
      */
-    public function __invoke(string $text, string $delimiters = null, bool $lowerFirst = false): string
+    public function __invoke(string $text, ?string $delimiters = null, bool $lowerFirst = false): string
     {
     }
 }

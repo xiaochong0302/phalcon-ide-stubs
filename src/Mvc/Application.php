@@ -12,11 +12,15 @@ namespace Phalcon\Mvc;
 use Closure;
 use Phalcon\Application\AbstractApplication;
 use Phalcon\Di\DiInterface;
-use Phalcon\Http\ResponseInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Http\ResponseInterface;
 use Phalcon\Mvc\Application\Exception;
-use Phalcon\Mvc\Router\RouteInterface;
+use Phalcon\Mvc\Application\Exceptions\ContainerRequired;
+use Phalcon\Mvc\Application\Exceptions\InvalidModuleDefinition;
+use Phalcon\Mvc\Application\Exceptions\ModuleDefinitionPathNotFound;
 use Phalcon\Mvc\ModuleDefinitionInterface;
+use Phalcon\Mvc\Router\RouteInterface;
+use Phalcon\Traits\Php\FileTrait;
 
 /**
  * Phalcon\Mvc\Application
@@ -66,6 +70,9 @@ use Phalcon\Mvc\ModuleDefinitionInterface;
  */
 class Application extends AbstractApplication
 {
+    use \Phalcon\Traits\Php\FileTrait;
+
+
     /**
      * @var bool
      */
@@ -95,9 +102,9 @@ class Application extends AbstractApplication
      * Enables or disables sending cookies by each request handling
      *
      * @param bool $sendCookies
-     * @return Application
+     * @return static
      */
-    public function sendCookiesOnHandleRequest(bool $sendCookies): Application
+    public function sendCookiesOnHandleRequest(bool $sendCookies): static
     {
     }
 
@@ -105,9 +112,9 @@ class Application extends AbstractApplication
      * Enables or disables sending headers by each request handling
      *
      * @param bool $sendHeaders
-     * @return Application
+     * @return static
      */
-    public function sendHeadersOnHandleRequest(bool $sendHeaders): Application
+    public function sendHeadersOnHandleRequest(bool $sendHeaders): static
     {
     }
 
@@ -116,9 +123,9 @@ class Application extends AbstractApplication
      * You can full disable the view component using this method
      *
      * @param bool $implicitView
-     * @return Application
+     * @return static
      */
-    public function useImplicitView(bool $implicitView): Application
+    public function useImplicitView(bool $implicitView): static
     {
     }
 }

@@ -10,8 +10,6 @@
 namespace Phalcon\Session;
 
 /**
- * Phalcon\Session\BagInterface
- *
  * Interface for Phalcon\Session\Bag
  */
 interface BagInterface
@@ -42,25 +40,17 @@ interface BagInterface
     public function __unset(string $element): void;
 
     /**
-     * @param array $data
      * @return void
      */
-    public function init(array $data = []): void;
+    public function clear(): void;
 
     /**
      * @param string $element
      * @param mixed $defaultValue
-     * @param string $cast
+     * @param string|null $cast
      * @return mixed
      */
-    public function get(string $element, $defaultValue = null, string $cast = null): mixed;
-
-    /**
-     * @param string $element
-     * @param mixed $value
-     * @return void
-     */
-    public function set(string $element, $value): void;
+    public function get(string $element, $defaultValue = null, ?string $cast = null): mixed;
 
     /**
      * @param string $element
@@ -69,13 +59,21 @@ interface BagInterface
     public function has(string $element): bool;
 
     /**
+     * @param array $data
+     * @return void
+     */
+    public function init(array $data = []): void;
+
+    /**
      * @param string $element
      * @return void
      */
     public function remove(string $element): void;
 
     /**
+     * @param string $element
+     * @param mixed $value
      * @return void
      */
-    public function clear(): void;
+    public function set(string $element, $value): void;
 }

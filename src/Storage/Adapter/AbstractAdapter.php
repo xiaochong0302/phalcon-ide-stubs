@@ -12,27 +12,26 @@ namespace Phalcon\Storage\Adapter;
 use DateInterval;
 use DateTime;
 use Exception;
+use Phalcon\Contracts\Storage\StorageTypes;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Events\Traits\EventsAwareTrait;
 use Phalcon\Storage\Serializer\SerializerInterface;
 use Phalcon\Storage\SerializerFactory;
-use Phalcon\Support\Exception as SupportException;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
 
 /**
- * Class AbstractAdapter
+ * Storage AbstractAdapter
  *
- * @package Phalcon\Storage\Adapter
- *
- * @property mixed               $adapter
- * @property string              $defaultSerializer
- * @property int                 $lifetime
- * @property array               $options
- * @property string              $prefix
- * @property SerializerInterface $serializer
- * @property SerializerFactory   $serializerFactory
+ * @phpstan-import-type storage_keys from StorageTypes
+ * @phpstan-import-type storage_options from StorageTypes
  */
 abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterface, \Phalcon\Events\EventsAwareInterface
 {
+    use \Phalcon\Events\Traits\EventsAwareTrait;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
     /**
      * @var mixed
      */
@@ -40,63 +39,48 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
 
     /**
      * Name of the default serializer class
-     *
-     * @var string
      */
-    protected $defaultSerializer = 'php';
-
-    /**
-     * Name of the default TTL (time to live)
-     *
-     * @var int
-     */
-    protected $lifetime = 3600;
-
-    /**
-     * @var array
-     */
-    protected $options = [];
-
-    /**
-     * @var string
-     */
-    protected $prefix = 'ph-memo-';
-
-    /**
-     * Serializer
-     *
-     * @var SerializerInterface|null
-     */
-    protected $serializer;
-
-    /**
-     * Serializer Factory
-     *
-     * @var SerializerFactory
-     */
-    protected $serializerFactory;
-
-    /**
-     * Event Manager
-     *
-     * @var ManagerInterface|null
-     */
-    protected $eventsManager = null;
+    protected string $defaultSerializer = 'php';
 
     /**
      * EventType prefix.
-     *
-     * @var string
      */
-    protected $eventType = 'storage';
+    protected string $eventType = 'storage';
+
+    /**
+     * Name of the default TTL (time to live)
+     */
+    protected int $lifetime = 3600;
+
+    /**
+     * @var array<string, mixed>
+     *
+     * @phpstan-var storage_options
+     */
+    protected array $options = [];
+
+    protected string $prefix = 'ph-memo-';
+
+    protected ?\Phalcon\Storage\Serializer\SerializerInterface $serializer = null;
+
+    protected \Phalcon\Storage\SerializerFactory $serializerFactory;
+
+    /**
+     * Whether a leading prefix is stripped from incoming keys before the
+     * adapter prefix is applied. Disable when keys are externally
+     * generated identifiers that may legitimately start with the prefix
+     * text (e.g. session ids).
+     */
+    protected bool $stripPrefix = true;
 
     /**
      * AbstractAdapter constructor.
      *
-     * @param SerializerFactory $factory
-     * @param array             $options
+     * @phpstan-param storage_options $options
+     * @param \Phalcon\Storage\SerializerFactory $serializerFactory
+     * @param array $options
      */
-    protected function __construct(\Phalcon\Storage\SerializerFactory $factory, array $options = [])
+    protected function __construct(\Phalcon\Storage\SerializerFactory $serializerFactory, array $options = [])
     {
     }
 
@@ -111,27 +95,39 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
      * Decrements a stored number
      *
      * @param string $key
-     * @param int    $value
-     *
-     * @return int | bool
+     * @param int $value
+     * @return false|int
      */
-    abstract public function decrement(string $key, int $value = 1): int|bool;
+    public function decrement(string $key, int $value = 1): int|false
+    {
+    }
 
     /**
      * Deletes data from the adapter
      *
      * @param string $key
-     *
      * @return bool
      */
-    abstract public function delete(string $key): bool;
+    public function delete(string $key): bool
+    {
+    }
+
+    /**
+     * Deletes multiple data from the adapter
+     *
+     * @phpstan-param storage_keys $keys
+     * @param array $keys
+     * @return bool
+     */
+    public function deleteMultiple(array $keys): bool
+    {
+    }
 
     /**
      * Reads data from the adapter
      *
-     * @param string     $key
-     * @param mixed|null $defaultValue
-     *
+     * @param string $key
+     * @param mixed $defaultValue
      * @return mixed
      */
     public function get(string $key, $defaultValue = null): mixed
@@ -159,8 +155,8 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     /**
      * Returns all the keys stored
      *
+     * @phpstan-return storage_keys
      * @param string $prefix
-     *
      * @return array
      */
     abstract public function getKeys(string $prefix = ''): array;
@@ -186,9 +182,9 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     /**
      * Get the serializer
      *
-     * @return SerializerInterface
+     * @return SerializerInterface|null
      */
-    public function getSerializer(): SerializerInterface
+    public function getSerializer(): SerializerInterface|null
     {
     }
 
@@ -196,31 +192,38 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
      * Checks if an element exists in the cache
      *
      * @param string $key
-     *
      * @return bool
      */
-    abstract public function has(string $key): bool;
+    public function has(string $key): bool
+    {
+    }
 
     /**
      * Increments a stored number
      *
      * @param string $key
-     * @param int    $value
-     *
-     * @return int | bool
+     * @param int $value
+     * @return false|int
      */
-    abstract public function increment(string $key, int $value = 1): int|bool;
+    public function increment(string $key, int $value = 1): int|false
+    {
+    }
 
     /**
-     * Stores data in the adapter
+     * Stores data in the adapter. If the TTL is `null` (default) or not defined
+     * then the default TTL will be used, as set in this adapter. If the TTL
+     * is `0` or a negative number, a `delete()` will be issued, since this
+     * item has expired. If you need to set this key forever, you should use
+     * the `setForever()` method.
      *
-     * @param string                $key
-     * @param mixed                 $value
-     * @param DateInterval|int|null $ttl
-     *
+     * @param string $key
+     * @param mixed $value
+     * @param mixed $ttl
      * @return bool
      */
-    abstract public function set(string $key, $value, $ttl = null): bool;
+    public function set(string $key, $value, $ttl = null): bool
+    {
+    }
 
     /**
      * @param string $serializer
@@ -231,20 +234,93 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     }
 
     /**
-     * @param string $key
+     * Decrements a stored number
      *
-     * @return mixed
+     * @param string $key
+     * @param int $value
+     * @return false|int
      */
-    protected function doGet(string $key)
+    abstract protected function doDecrement(string $key, int $value = 1): int|false;
+
+    /**
+     * Deletes data from the adapter
+     *
+     * @param string $key
+     * @return bool
+     */
+    abstract protected function doDelete(string $key): bool;
+
+    /**
+     * Deletes multiple data from the adapter
+     *
+     * @phpstan-param storage_keys $keys
+     * @param array $keys
+     * @return bool
+     */
+    protected function doDeleteMultiple(array $keys): bool
     {
     }
 
     /**
+     * @param string $key
+     *
+     * @return mixed
+     * @param mixed $defaultValue
+     */
+    protected function doGet(string $key, $defaultValue = null): mixed
+    {
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return mixed
+     */
+    protected function doGetData(string $key): mixed
+    {
+    }
+
+    /**
+     * Checks if an element exists in the cache
+     *
+     * @param string $key
+     *
+     * @return bool
+     */
+    abstract protected function doHas(string $key): bool;
+
+    /**
+     * Increments a stored number
+     *
+     * @param string $key
+     * @param int $value
+     * @return false|int
+     */
+    abstract protected function doIncrement(string $key, int $value = 1): int|false;
+
+    /**
+     * Stores data in the adapter. If the TTL is `null` (default) or not defined
+     * then the default TTL will be used, as set in this adapter. If the TTL
+     * is `0` or a negative number, a `delete()` will be issued, since this
+     * item has expired. If you need to set this key forever, you should use
+     * the `setForever()` method.
+     *
+     * @param string                $key
+     * @param mixed                 $value
+     * @param DateInterval|int|null $ttl
+     *
+     * @return bool
+     */
+    abstract protected function doSet(string $key, $value, $ttl = null): bool;
+
+    /**
      * Filters the keys array based on global and passed prefix
      *
-     * @param mixed  $keys
-     * @param string $prefix
+     * @phpstan-param storage_keys|false $keys
      *
+     * @phpstan-return storage_keys
+     * @param mixed $keys
+     * @param string $prefix
      * @return array
      */
     protected function getFilteredKeys($keys, string $prefix): array
@@ -252,10 +328,21 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     }
 
     /**
-     * Returns the key requested, prefixed
+     * Check if the key has the prefix and remove it, otherwise just return the
+     * key unaltered. When the `stripPrefix` option is `false` the key is
+     * always returned unaltered.
      *
      * @param string $key
+     * @return string
+     */
+    protected function getKeyWithoutPrefix(string $key): string
+    {
+    }
+
+    /**
+     * Returns the key requested, prefixed
      *
+     * @param float|int|string $key
      * @return string
      */
     protected function getPrefixedKey($key): string
@@ -265,8 +352,8 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     /**
      * Returns serialized data
      *
+     * @throws Exception
      * @param mixed $content
-     *
      * @return mixed
      */
     protected function getSerializedData($content): mixed
@@ -276,10 +363,9 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     /**
      * Calculates the TTL for a cache item
      *
-     * @param DateInterval|int|null $ttl
-     *
-     * @return int
      * @throws Exception
+     * @param mixed $ttl
+     * @return int
      */
     protected function getTtl($ttl): int
     {
@@ -288,9 +374,8 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     /**
      * Returns unserialized data
      *
-     * @param mixed      $content
-     * @param mixed|null $defaultValue
-     *
+     * @param mixed $content
+     * @param mixed $defaultValue
      * @return mixed
      */
     protected function getUnserializedData($content, $defaultValue = null): mixed
@@ -300,52 +385,10 @@ abstract class AbstractAdapter implements \Phalcon\Storage\Adapter\AdapterInterf
     /**
      * Initializes the serializer
      *
-     * @throws SupportException
+     * @throws Exception
      * @return void
      */
     protected function initSerializer(): void
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @param string $cast
-     * @return mixed
-     */
-    protected function getArrVal(array $collection, $index, $defaultValue = null, string $cast = null): mixed
-    {
-    }
-
-    /**
-     * Sets the event manager
-     *
-     * @param \Phalcon\Events\ManagerInterface $eventsManager
-     * @return void
-     */
-    public function setEventsManager(\Phalcon\Events\ManagerInterface $eventsManager): void
-    {
-    }
-
-    /**
-     * Get the event manager
-     *
-     * @return ManagerInterface|null
-     */
-    public function getEventsManager(): ManagerInterface|null
-    {
-    }
-
-    /**
-     * Trigger an event for the eventsManager.
-     *
-     * @param string $eventName
-     * @param mixed $keys
-     * @return void
-     */
-    protected function fire(string $eventName, $keys): void
     {
     }
 }

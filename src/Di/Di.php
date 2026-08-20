@@ -9,18 +9,22 @@
  */
 namespace Phalcon\Di;
 
-use Phalcon\Di\Service;
-use Phalcon\Di\DiInterface;
-use Phalcon\Di\Exception;
-use Phalcon\Di\Exception\ServiceResolutionException;
 use Phalcon\Config\Adapter\Php;
 use Phalcon\Config\Adapter\Yaml;
 use Phalcon\Config\ConfigInterface;
-use Phalcon\Di\ServiceInterface;
-use Phalcon\Events\ManagerInterface;
+use Phalcon\Di\DiInterface;
+use Phalcon\Di\Exception;
+use Phalcon\Di\Exception\ServiceResolutionException;
+use Phalcon\Di\Exceptions\AliasAlreadyInUse;
+use Phalcon\Di\Exceptions\AliasNameMustBeString;
+use Phalcon\Di\Exceptions\CircularAliasReference;
+use Phalcon\Di\Exceptions\ServiceCannotBeResolved;
 use Phalcon\Di\InitializationAwareInterface;
 use Phalcon\Di\InjectionAwareInterface;
+use Phalcon\Di\Service;
+use Phalcon\Di\ServiceInterface;
 use Phalcon\Di\ServiceProviderInterface;
+use Phalcon\Events\ManagerInterface;
 
 /**
  * Phalcon\Di\Di is a component that implements Dependency Injection/Service
@@ -63,6 +67,27 @@ use Phalcon\Di\ServiceProviderInterface;
 class Di implements \Phalcon\Di\DiInterface
 {
     /**
+     * List of service aliases
+     *
+     * @var array
+     */
+    protected $aliases = [];
+
+    /**
+     * Latest DI build
+     *
+     * @var DiInterface|null
+     */
+    protected static $defaultContainer = null;
+
+    /**
+     * Events Manager
+     *
+     * @var ManagerInterface|null
+     */
+    protected $eventsManager = null;
+
+    /**
      * List of registered services
      *
      * @var ServiceInterface[]
@@ -75,20 +100,6 @@ class Di implements \Phalcon\Di\DiInterface
      * @var array
      */
     protected $sharedInstances = [];
-
-    /**
-     * Events Manager
-     *
-     * @var ManagerInterface|null
-     */
-    protected $eventsManager = null;
-
-    /**
-     * Latest DI build
-     *
-     * @var DiInterface|null
-     */
-    protected static $defaultDi;
 
     /**
      * Phalcon\Di\Di constructor
@@ -130,6 +141,18 @@ class Di implements \Phalcon\Di\DiInterface
      * @return mixed
      */
     public function get(string $name, $parameters = null): mixed
+    {
+    }
+
+    /**
+     * Return the alias based on a passed key. Returns an empty string if
+     * the alias does not exist
+     *
+     * @param string $name
+     *
+     * @return string
+     */
+    public function getAlias(string $name): string
     {
     }
 
@@ -273,10 +296,10 @@ class Di implements \Phalcon\Di\DiInterface
      *
      * @link https://docs.phalcon.io/latest/di/
      * @param string $filePath
-     * @param array $callbacks
+     * @param array|null $callbacks
      * @return void
      */
-    public function loadFromYaml(string $filePath, array $callbacks = null): void
+    public function loadFromYaml(string $filePath, ?array $callbacks = null): void
     {
     }
 
@@ -287,6 +310,20 @@ class Di implements \Phalcon\Di\DiInterface
      * @return bool
      */
     public function has(string $name): bool
+    {
+    }
+
+    /**
+     * Check whether the DI has a cached shared instance for a service name.
+     *
+     * Unlike `has()`, which reports on the servicedefinition registry,
+     * this method reports only on the resolved-instance cache populated by
+     * `getShared()`.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function hasShared(string $name): bool
     {
     }
 
@@ -379,6 +416,17 @@ class Di implements \Phalcon\Di\DiInterface
     }
 
     /**
+     * Removes the cached shared instance for a service, leaving the service
+     * definition intact so the next `getShared()` call rebuilds it.
+     *
+     * @param string $name
+     * @return void
+     */
+    public function removeShared(string $name): void
+    {
+    }
+
+    /**
      * Resets the internal default DI
      *
      * @return void
@@ -396,6 +444,19 @@ class Di implements \Phalcon\Di\DiInterface
      * @return ServiceInterface
      */
     public function set(string $name, $definition, bool $shared = false): ServiceInterface
+    {
+    }
+
+    /**
+     * Sets one or more aliases to the given name.
+     *
+     * @param string       $name
+     * @param string|array $aliases
+     *
+     * @return Di
+     * @throws Exception
+     */
+    public function setAlias(string $name, $aliases): self
     {
     }
 
@@ -438,6 +499,18 @@ class Di implements \Phalcon\Di\DiInterface
      * @return ServiceInterface
      */
     public function setShared(string $name, $definition): ServiceInterface
+    {
+    }
+
+    /**
+     * Resolve an alias to its actual service name
+     *
+     * @param string $name
+     *
+     * @return string
+     * @throws Exception
+     */
+    private function resolveAlias(string $name): string
     {
     }
 }

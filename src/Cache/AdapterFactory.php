@@ -10,34 +10,41 @@
 namespace Phalcon\Cache;
 
 use Phalcon\Cache\Adapter\AdapterInterface;
+use Phalcon\Cache\Adapter\Apcu;
+use Phalcon\Cache\Adapter\Libmemcached;
+use Phalcon\Cache\Adapter\Memory;
+use Phalcon\Cache\Adapter\Redis;
+use Phalcon\Cache\Adapter\RedisCluster;
+use Phalcon\Cache\Adapter\Stream;
+use Phalcon\Cache\Adapter\Weak;
 use Phalcon\Cache\Exception\Exception;
+use Phalcon\Contracts\Storage\StorageTypes;
 use Phalcon\Factory\AbstractFactory;
 use Phalcon\Storage\SerializerFactory;
+use Throwable;
 
 /**
  * Factory to create Cache adapters
+ *
+ * @phpstan-import-type storage_adapter_options from StorageTypes
  */
 class AdapterFactory extends AbstractFactory
 {
-    /**
-     * @var SerializerFactory
-     */
-    private $serializerFactory;
+    protected \Phalcon\Storage\SerializerFactory $serializerFactory;
 
     /**
      * AdapterFactory constructor.
      *
-     * @param SerializerFactory $factory
-     * @param array             $services
+     * @param array<string, string> $services
+     * @param \Phalcon\Storage\SerializerFactory $serializerFactory
      */
-    public function __construct(\Phalcon\Storage\SerializerFactory $factory, array $services = [])
+    public function __construct(\Phalcon\Storage\SerializerFactory $serializerFactory, array $services = [])
     {
     }
 
     /**
      * Create a new instance of the adapter
      *
-     * @param string $name
      * @param array  $options = [
      *     'servers' => [
      *         [
@@ -59,15 +66,18 @@ class AdapterFactory extends AbstractFactory
      *     'storageDir'        => ''
      * ]
      *
+     * @phpstan-param storage_adapter_options $options
+     *
      * @return AdapterInterface
      * @throws Exception
+     * @param string $name
      */
     public function newInstance(string $name, array $options = []): AdapterInterface
     {
     }
 
     /**
-     * @return string
+     * @return class-string<Throwable>
      */
     protected function getExceptionClass(): string
     {

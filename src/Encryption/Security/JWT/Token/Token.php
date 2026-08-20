@@ -18,6 +18,10 @@ use Phalcon\Encryption\Security\JWT\Validator;
  * A container for Token related data. It stores the claims, headers, signature
  * and payload. It also calculates and returns the token string.
  *
+ * @property Item      $claims
+ * @property Item      $headers
+ * @property Signature $signature
+ *
  * @link https://tools.ietf.org/html/rfc7519
  */
 class Token
@@ -94,6 +98,11 @@ class Token
     }
 
     /**
+     * Validate the token against the claims registered in the validator.
+     *
+     * Only claims that have a value in the validator are checked. A claim left
+     * as null expresses no expectation and is skipped.
+     *
      * @param Validator $validator
      *
      * @return array

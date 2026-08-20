@@ -10,28 +10,28 @@
 namespace Phalcon\Translate;
 
 use Phalcon\Config\ConfigInterface;
+use Phalcon\Contracts\Translate\TranslateTypes;
 use Phalcon\Factory\AbstractFactory;
 use Phalcon\Translate\Adapter\AdapterInterface;
+use Phalcon\Translate\Adapter\Csv;
+use Phalcon\Translate\Adapter\Gettext;
+use Phalcon\Translate\Adapter\NativeArray;
+use Phalcon\Translate\Exceptions\TranslatorNotRegistered;
+use Throwable;
 
 /**
- * Class TranslateFactory
- *
- * @package Phalcon\Translate
- *
  * @property InterpolatorFactory $interpolator
+ *
+ * @phpstan-import-type translate_factory_config from TranslateTypes
  */
 class TranslateFactory extends AbstractFactory
 {
-    /**
-     * @var InterpolatorFactory
-     */
-    private $interpolator;
+    private InterpolatorFactory $interpolator;
 
     /**
-     * AdapterFactory constructor.
-     *
+     * @phpstan-param array<string, string> $services
      * @param InterpolatorFactory $interpolator
-     * @param array               $services
+     * @param array $services
      */
     public function __construct(InterpolatorFactory $interpolator, array $services = [])
     {
@@ -40,22 +40,11 @@ class TranslateFactory extends AbstractFactory
     /**
      * Factory to create an instance from a Config object
      *
-     * @param array|ConfigInterface $config = [
-     *     'adapter' => 'ini,
-     *     'options' => [
-     *         'content'       => '',
-     *         'delimiter'     => ';',
-     *         'enclosure'     => '"',
-     *         'locale'        => '',
-     *         'defaultDomain' => '',
-     *         'directory'     => '',
-     *         'category'      => ''
-     *         'triggerError'  => false
-     *     ]
-     * ]
+     * @phpstan-param ConfigInterface|translate_factory_config $config
      *
      * @return AdapterInterface
      * @throws Exception
+     * @param mixed $config
      */
     public function load($config): AdapterInterface
     {
@@ -64,18 +53,18 @@ class TranslateFactory extends AbstractFactory
     /**
      * Create a new instance of the adapter
      *
-     * @param string $name
-     * @param array  $options
+     * @phpstan-param array<string, mixed> $options
      *
      * @return AdapterInterface
-     * @throws Exception
+     * @param string $name
+     * @param array $options
      */
     public function newInstance(string $name, array $options = []): AdapterInterface
     {
     }
 
     /**
-     * @return string
+     * @return class-string<Throwable>
      */
     protected function getExceptionClass(): string
     {

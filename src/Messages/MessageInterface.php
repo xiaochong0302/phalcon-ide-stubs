@@ -9,10 +9,12 @@
  */
 namespace Phalcon\Messages;
 
+use Phalcon\Contracts\Messages\MessagesTypes;
+
 /**
- * Phalcon\Messages\MessageInterface
+ * Interface for Phalcon\Messages\Message
  *
- * Interface for Phalcon\Messages\MessageInterface
+ * @phpstan-import-type messages_metadata from MessagesTypes
  */
 interface MessageInterface
 {
@@ -28,14 +30,14 @@ interface MessageInterface
      *
      * @return int
      */
-    public function getCode();
+    public function getCode(): int;
 
     /**
      * Returns field name related to message
      *
      * @return string
      */
-    public function getField();
+    public function getField(): string;
 
     /**
      * Returns verbose message
@@ -47,7 +49,7 @@ interface MessageInterface
     /**
      * Returns message metadata
      *
-     * @return array
+     * @return messages_metadata
      */
     public function getMetaData(): array;
 
@@ -85,7 +87,7 @@ interface MessageInterface
     /**
      * Sets message metadata
      *
-     * @param array $metaData
+     * @param messages_metadata $metaData
      * @return MessageInterface
      */
     public function setMetaData(array $metaData): MessageInterface;

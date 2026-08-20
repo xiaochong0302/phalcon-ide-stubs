@@ -9,11 +9,29 @@
  */
 namespace Phalcon\Html\Helper;
 
+use Phalcon\Html\Escaper\EscaperInterface;
+
 /**
  * Class Ol
+ *
+ * @property bool $forceRaw
  */
 class Ol extends \Phalcon\Html\Helper\AbstractList
 {
+    /**
+     * @var bool
+     */
+    protected $forceRaw = false;
+
+    /**
+     * @param EscaperInterface $escaper
+     * @param Doctype          $doctype
+     * @param bool             $forceRaw
+     */
+    public function __construct(\Phalcon\Html\Escaper\EscaperInterface $escaper, ?Doctype $doctype = null, bool $forceRaw = false)
+    {
+    }
+
     /**
      * Add an element to the list
      *
@@ -21,9 +39,9 @@ class Ol extends \Phalcon\Html\Helper\AbstractList
      * @param array  $attributes
      * @param bool   $raw
      *
-     * @return AbstractList
+     * @return static
      */
-    public function add(string $text, array $attributes = [], bool $raw = false): AbstractList
+    public function add(string $text, array $attributes = [], bool $raw = false): static
     {
     }
 

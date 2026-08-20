@@ -12,9 +12,14 @@ namespace Phalcon\Db\Adapter\Pdo;
 use Phalcon\Db\Adapter\AbstractAdapter;
 use Phalcon\Db\Column;
 use Phalcon\Db\Exception;
+use Phalcon\Db\Exceptions\CannotPrepareStatement;
+use Phalcon\Db\Exceptions\InvalidBindParameter;
+use Phalcon\Db\Exceptions\MatchedParameterNotFound;
+use Phalcon\Db\Exceptions\NoActiveTransaction;
 use Phalcon\Db\Result\PdoResult;
 use Phalcon\Db\ResultInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Support\Settings;
 
 /**
  * Phalcon\Db\Adapter\Pdo is the Phalcon\Db that internally uses PDO to connect
@@ -37,11 +42,24 @@ use Phalcon\Events\ManagerInterface;
 abstract class AbstractPdo extends AbstractAdapter
 {
     /**
+     * @var string
+     */
+    const string BIND_PATTERN = '/\\\\?([0-9]+)|:([a-zA-Z0-9_]+):/';
+
+    /**
      * Last affected rows
      *
      * @var int
      */
     protected $affectedRows = 0;
+
+    /**
+     * Whether to transparently reconnect and retry once when a query fails
+     * because the connection was lost. Opt-in; off by default.
+     *
+     * @var bool
+     */
+    protected $autoReconnect = false;
 
     /**
      * PDO Handler
@@ -75,7 +93,7 @@ abstract class AbstractPdo extends AbstractAdapter
      *
      * ```php
      * $connection->execute(
-     *     "DELETE FROM robots"
+     *     "DELETE FROM co_invoices"
      * );
      *
      * echo $connection->affectedRows(), " were deleted";
@@ -154,9 +172,9 @@ abstract class AbstractPdo extends AbstractAdapter
      * ```php
      * print_r(
      *     $connection->convertBoundParams(
-     *         "SELECT FROM robots WHERE name = :name:",
+     *         "SELECT FROM co_invoices WHERE inv_title = :inv_title:",
      *         [
-     *             "Bender",
+     *             "Test Invoice",
      *         ]
      *     )
      * );
@@ -186,21 +204,30 @@ abstract class AbstractPdo extends AbstractAdapter
     }
 
     /**
+     * Ensures the connection is alive, reconnecting in place if it is not.
+     *
+     * @return void
+     */
+    public function ensureConnection(): void
+    {
+    }
+
+    /**
      * Sends SQL statements to the database server returning the success state.
-     * Use this method only when the SQL statement sent to the server doesn't
+     * Use this method only when the SQL statement sent to the server does not
      * return any rows
      *
      * ```php
      * // Inserting data
      * $success = $connection->execute(
-     *     "INSERT INTO robots VALUES (1, 'Astro Boy')"
+     *     "INSERT INTO co_invoices VALUES (1, 'Test Invoice')"
      * );
      *
      * $success = $connection->execute(
-     *     "INSERT INTO robots VALUES (?, ?)",
+     *     "INSERT INTO co_invoices VALUES (?, ?)",
      *     [
      *         1,
-     *         "Astro Boy",
+     *         "Test Invoice",
      *     ]
      * );
      * ```
@@ -222,26 +249,35 @@ abstract class AbstractPdo extends AbstractAdapter
      * use Phalcon\Db\Column;
      *
      * $statement = $db->prepare(
-     *     "SELECT FROM robots WHERE name = :name"
+     *     "SELECT FROM co_invoices WHERE inv_title = :inv_title"
      * );
      *
      * $result = $connection->executePrepared(
      *     $statement,
      *     [
-     *         "name" => "Voltron",
+     *         "inv_title" => "Test Invoice",
      *     ],
      *     [
-     *         "name" => Column::BIND_PARAM_STR,
+     *         "inv_title" => Column::BIND_PARAM_STR,
      *     ]
      * );
      * ```
      *
      * @param \PDOStatement $statement
      * @param array $placeholders
-     * @param mixed $dataTypes
+     * @param array $dataTypes
      * @return \PDOStatement
      */
-    public function executePrepared(\PDOStatement $statement, array $placeholders, $dataTypes): \PDOStatement
+    public function executePrepared(\PDOStatement $statement, array $placeholders, array $dataTypes = []): \PDOStatement
+    {
+    }
+
+    /**
+     * Returns whether transparent auto-reconnect is enabled.
+     *
+     * @return bool
+     */
+    public function getAutoReconnect(): bool
     {
     }
 
@@ -295,16 +331,16 @@ abstract class AbstractPdo extends AbstractAdapter
      * the latest executed SQL statement
      *
      * ```php
-     * // Inserting a new robot
+     * // Inserting a new invoice
      * $success = $connection->insert(
-     *     "robots",
+     *     "co_invoices",
      *     [
-     *         "Astro Boy",
-     *         1952,
+     *         "Test Invoice",
+     *         100,
      *     ],
      *     [
-     *         "name",
-     *         "year",
+     *         "inv_title",
+     *         "inv_total",
      *     ]
      * );
      *
@@ -315,7 +351,17 @@ abstract class AbstractPdo extends AbstractAdapter
      * @param string|null $name
      * @return string|bool
      */
-    public function lastInsertId(string $name = null): bool|string
+    public function lastInsertId(?string $name = null): bool|string
+    {
+    }
+
+    /**
+     * Checks whether the underlying connection is still alive by issuing a
+     * trivial query. Returns false if there is no handle or the probe fails.
+     *
+     * @return bool
+     */
+    public function ping(): bool
     {
     }
 
@@ -326,16 +372,16 @@ abstract class AbstractPdo extends AbstractAdapter
      * use Phalcon\Db\Column;
      *
      * $statement = $db->prepare(
-     *     "SELECT FROM robots WHERE name = :name"
+     *     "SELECT FROM co_invoices WHERE inv_title = :inv_title"
      * );
      *
      * $result = $connection->executePrepared(
      *     $statement,
      *     [
-     *         "name" => "Voltron",
+     *         "inv_title" => "Test Invoice",
      *     ],
      *     [
-     *         "name" => Column::BIND_PARAM_INT,
+     *         "inv_title" => Column::BIND_PARAM_INT,
      *     ]
      * );
      * ```
@@ -355,13 +401,13 @@ abstract class AbstractPdo extends AbstractAdapter
      * ```php
      * // Querying data
      * $resultset = $connection->query(
-     *     "SELECT FROM robots WHERE type = 'mechanical'"
+     *     "SELECT FROM co_invoices WHERE inv_status_flag = 1"
      * );
      *
      * $resultset = $connection->query(
-     *     "SELECT FROM robots WHERE type = ?",
+     *     "SELECT FROM co_invoices WHERE inv_status_flag = ?",
      *     [
-     *         "mechanical",
+     *         1,
      *     ]
      * );
      * ```
@@ -386,11 +432,33 @@ abstract class AbstractPdo extends AbstractAdapter
     }
 
     /**
+     * Enables or disables transparent auto-reconnect on a lost connection.
+     *
+     * @param bool $autoReconnect
+     * @return static
+     */
+    public function setAutoReconnect(bool $autoReconnect): static
+    {
+    }
+
+    /**
      * Returns PDO adapter DSN defaults as a key-value map.
      *
      * @return array
      */
     abstract protected function getDsnDefaults(): array;
+
+    /**
+     * Recognizes whether an exception represents a lost ("gone away")
+     * connection. The base adapter cannot know driver specifics, so it
+     * returns false; concrete adapters override this.
+     *
+     * @param \Throwable $exception
+     * @return bool
+     */
+    protected function isConnectionError(\Throwable $exception): bool
+    {
+    }
 
     /**
      * Constructs the SQL statement (with parameters)
@@ -401,6 +469,52 @@ abstract class AbstractPdo extends AbstractAdapter
      * @return void
      */
     protected function prepareRealSql(string $statement, array $parameters): void
+    {
+    }
+
+    /**
+     * Whether a failed query may be transparently retried after reconnecting.
+     * Only when auto-reconnect is on, we are not in a transaction, and the
+     * failure is a recognized connection loss.
+     *
+     * @param \Throwable $exception
+     * @return bool
+     */
+    private function canReconnect(\Throwable $exception): bool
+    {
+    }
+
+    /**
+     * Runs the actual write against PDO and returns the affected-rows count
+     * (or the raw exec() return for unprepared statements).
+     *
+     * @param string $sqlStatement
+     * @param array $bindParams
+     * @param array $bindTypes
+     * @return mixed
+     */
+    private function executeStatement(string $sqlStatement, array $bindParams, array $bindTypes): mixed
+    {
+    }
+
+    /**
+     * Notifies listeners that the connection was lost and re-establishes it.
+     *
+     * @return void
+     */
+    private function handleConnectionLost(): void
+    {
+    }
+
+    /**
+     * Prepares and executes a read statement, returning the live PDOStatement.
+     *
+     * @param string $sqlStatement
+     * @param array $params
+     * @param array $types
+     * @return \PDOStatement
+     */
+    private function queryStatement(string $sqlStatement, array $params, array $types): \PDOStatement
     {
     }
 }

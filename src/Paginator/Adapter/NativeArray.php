@@ -10,11 +10,10 @@
 namespace Phalcon\Paginator\Adapter;
 
 use Phalcon\Paginator\Exception;
+use Phalcon\Paginator\Exceptions\PaginatorDataNotArray;
 use Phalcon\Paginator\RepositoryInterface;
 
 /**
- * Phalcon\Paginator\Adapter\NativeArray
- *
  * Pagination using a PHP array as source of data
  *
  * ```php

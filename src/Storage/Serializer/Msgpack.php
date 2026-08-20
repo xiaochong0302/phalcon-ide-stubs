@@ -9,6 +9,8 @@
  */
 namespace Phalcon\Storage\Serializer;
 
+use Phalcon\Traits\Php\MsgpackTrait;
+
 /**
  * This file is part of the Phalcon Framework.
  *
@@ -19,20 +21,22 @@ namespace Phalcon\Storage\Serializer;
  */
 class Msgpack extends \Phalcon\Storage\Serializer\Igbinary
 {
+    use \Phalcon\Traits\Php\MsgpackTrait;
+
+
+
     /**
      * Serializes data
      *
-     * @return string
      * @param mixed $value
+     * @return string
      */
     protected function doSerialize($value): string
     {
     }
 
     /**
-     * @param mixed $value
-     *
-     * @return mixed
+     * @param string $value
      */
     protected function doUnserialize($value)
     {

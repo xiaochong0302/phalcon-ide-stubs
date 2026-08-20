@@ -10,11 +10,14 @@
 namespace Phalcon\Dispatcher;
 
 use Exception;
+use Phalcon\Contracts\Dispatcher\DispatcherTypes;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\AbstractInjectionAware;
 use Phalcon\Dispatcher\Exception as PhalconException;
+use Phalcon\Dispatcher\Exceptions\ForwardInInitializeForbidden;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Events\Traits\EventsAwareTrait;
 use Phalcon\Filter\FilterInterface;
 use Phalcon\Mvc\Model\Binder;
 use Phalcon\Mvc\Model\BinderInterface;
@@ -24,113 +27,108 @@ use Phalcon\Support\Collection;
  * This is the base class for Phalcon\Mvc\Dispatcher and Phalcon\Cli\Dispatcher.
  * This class can't be instantiated directly, you can use it to create your own
  * dispatchers.
+ *
+ * ## Error protocol
+ *
+ * Subclasses (including third-party ones) MUST implement the two abstract
+ * error hooks throwDispatchException() and handleException().
+ * The dispatch loop calls them on every error/exception path; a subclass that
+ * omits them cannot be loaded.
+ *
+ * ## Hook channels
+ *
+ * A single lifecycle point can be intercepted through three independent
+ * channels. For any given point they run in this order:
+ *
+ * 1.Events-manager listener - e.g. `dispatch:beforeExecuteRoute`. A
+ *    listener returning `false` cancels; calling `forward()` re-enters the
+ *    loop; throwing routes through handleException().
+ * 2.Duck-typed handler method - e.g. a `beforeExecuteRoute()` method on
+ *    the controller/task itself (presence is cached per class). Same
+ *    `false` / `forward()` cancellation semantics as the event.
+ * 3.`dispatch:beforeCallAction` observer - fired by
+ *    callActionMethod() with a `Phalcon\Support\Collection` carrying
+ *    the mutable keys `handler`, `action` and `params`. Listeners may rewrite
+ *    those keys to changewhat gets invoked; the substituted callable is
+ *    re-validated before the call. `dispatch:afterCallAction` receives the
+ *    same Collection plus a `result` key.
+ *
+ * @todo fix the returnValue type in v7
+ *
+ * @phpstan-import-type dispatcher_bound_models from DispatcherTypes
+ * @phpstan-import-type dispatcher_forward from DispatcherTypes
+ * @phpstan-import-type dispatcher_handler_hashes from DispatcherTypes
+ * @phpstan-import-type dispatcher_hook_cache from DispatcherTypes
+ * @phpstan-import-type dispatcher_method_map from DispatcherTypes
+ * @phpstan-import-type dispatcher_params from DispatcherTypes
  */
 abstract class AbstractDispatcher extends AbstractInjectionAware implements \Phalcon\Dispatcher\DispatcherInterface, \Phalcon\Events\EventsAwareInterface
 {
+    use \Phalcon\Events\Traits\EventsAwareTrait;
+
+
+    protected string $actionName = '';
+
+    protected string $actionSuffix = 'Action';
+
     /**
      * @var object|null
      */
     protected $activeHandler = null;
 
     /**
-     * @var array
+     * @phpstan-var dispatcher_method_map
      */
-    protected $activeMethodMap = [];
+    protected array $activeMethodMap = [];
 
     /**
-     * @var string
+     * @phpstan-var dispatcher_method_map
      */
-    protected $actionName = '';
+    protected array $camelCaseMap = [];
+
+    protected string $defaultAction = '';
+
+    protected string $defaultHandler = '';
+
+    protected string $defaultNamespace = '';
+
+    protected bool $finished = false;
+
+    protected bool $forwarded = false;
 
     /**
-     * @var string
+     * @phpstan-var dispatcher_handler_hashes
      */
-    protected $actionSuffix = 'Action';
+    protected array $handlerHashes = [];
 
     /**
-     * @var array
+     * @phpstan-var dispatcher_hook_cache
      */
-    protected $camelCaseMap = [];
+    protected array $handlerHookCache = [];
+
+    protected string $handlerName = '';
+
+    protected string $handlerSuffix = '';
+
+    protected bool $isControllerInitialize = false;
 
     /**
-     * @var string
-     */
-    protected $defaultAction = '';
-
-    /**
-     * @var string
-     */
-    protected $defaultNamespace = '';
-
-    /**
-     * @var string
-     */
-    protected $defaultHandler = '';
-
-    /**
-     * @var array
-     */
-    protected $handlerHashes = [];
-
-    /**
-     * @var string
-     */
-    protected $handlerName = '';
-
-    /**
-     * @var string
-     */
-    protected $handlerSuffix = '';
-
-    /**
-     * @var ManagerInterface|null
-     */
-    protected $eventsManager = null;
-
-    /**
-     * @var bool
-     */
-    protected $finished = false;
-
-    /**
-     * @var bool
-     */
-    protected $forwarded = false;
-
-    /**
-     * @var bool
-     */
-    protected $isControllerInitialize = false;
-
-    /**
-     * @var mixed|null
+     * @var mixed
      */
     protected $lastHandler = null;
 
-    /**
-     * @var BinderInterface|null
-     */
-    protected $modelBinder = null;
+    protected ?\Phalcon\Mvc\Model\BinderInterface $modelBinder = null;
+
+    protected bool $modelBinding = false;
+
+    protected string $moduleName = '';
+
+    protected string $namespaceName = '';
 
     /**
-     * @var bool
+     * @phpstan-var dispatcher_params
      */
-    protected $modelBinding = false;
-
-    /**
-     * @var string
-     */
-    protected $moduleName = '';
-
-    /**
-     * @var string
-     */
-    protected $namespaceName = '';
-
-    /**
-     * @var array
-     */
-    protected $params = [];
+    protected array $params = [];
 
     /**
      * @var string|null
@@ -153,6 +151,7 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     protected $returnedValue = null;
 
     /**
+     * @phpstan-param dispatcher_params $params
      * @param mixed $handler
      * @param string $actionMethod
      * @param array $params
@@ -187,7 +186,7 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
      * );
      * ```
      *
-     * @throws PhalconException
+     * @phpstan-param dispatcher_forward $forward
      * @param array $forward
      * @return void
      */
@@ -236,6 +235,7 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
      * }
      * ```
      *
+     * @phpstan-return dispatcher_bound_models
      * @return array
      */
     public function getBoundModels(): array
@@ -252,11 +252,11 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     }
 
     /**
-     * Returns the internal event manager
+     * Possible class name that will be located to dispatch the request
      *
-     * @return ManagerInterface|null
+     * @return string
      */
-    public function getEventsManager(): ManagerInterface|null
+    public function getHandlerClass(): string
     {
     }
 
@@ -299,12 +299,20 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     /**
      * Gets a param by its name or numeric index
      *
-     * @param mixed $param
-     * @param string|array $filters
-     * @param mixed $defaultValue
-     * @return mixed
+     * @phpstan-param array-key $param
+     * @phpstan-param mixed $filters
+     * @param mixed             $defaultValue
      *
-     * @todo remove this in future versions
+     * @deprecated Use getParameter() instead
+     *
+     * Note: The interface declares `getParam(param, filters = null)` without the
+     * `defaultValue` argument, so code typed against `DispatcherInterface`
+     * cannot use the default-value feature. This signature drift is intentional
+     * for now; the interface and implementation will be aligned in the next
+     * major version.
+     * @param mixed $param
+     * @param mixed $filters
+     * @return mixed
      */
     public function getParam($param, $filters = null, $defaultValue = null): mixed
     {
@@ -313,9 +321,11 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     /**
      * Gets a param by its name or numeric index
      *
+     * @phpstan-param array-key $param
+     * @phpstan-param mixed $filters
+     * @param mixed             $defaultValue
      * @param mixed $param
-     * @param string|array $filters
-     * @param mixed $defaultValue
+     * @param mixed $filters
      * @return mixed
      */
     public function getParameter($param, $filters = null, $defaultValue = null): mixed
@@ -325,16 +335,7 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     /**
      * Gets action params
      *
-     * @todo remove this in future versions
-     * @return array
-     */
-    public function getParams(): array
-    {
-    }
-
-    /**
-     * Gets action params
-     *
+     * @phpstan-return dispatcher_params
      * @return array
      */
     public function getParameters(): array
@@ -342,9 +343,59 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     }
 
     /**
+     * Gets action params
+     *
+     * @deprecated Use getParameters() instead
+     *
+     * @phpstan-return dispatcher_params
+     * @return array
+     */
+    public function getParams(): array
+    {
+    }
+
+    /**
+     * Gets previous dispatched action name
+     *
+     * @return string
+     */
+    public function getPreviousActionName(): string
+    {
+    }
+
+    /**
+     * Gets previous dispatched handler name
+     *
+     * @return string
+     */
+    public function getPreviousHandlerName(): string
+    {
+    }
+
+    /**
+     * Gets previous dispatched namespace name
+     *
+     * @return string
+     */
+    public function getPreviousNamespaceName(): string
+    {
+    }
+
+    /**
+     * Returns value returned by the latest dispatched action
+     *
+     * @return mixed
+     */
+    public function getReturnedValue(): mixed
+    {
+    }
+
+    /**
      * Check if a param exists
      *
-     * @todo deprecate this in the future
+     * @phpstan-param array-key $param
+     *
+     * @deprecated Use hasParameter() instead
      * @param mixed $param
      * @return bool
      */
@@ -355,6 +406,7 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     /**
      * Check if a param exists
      *
+     * @phpstan-param array-key $param
      * @param mixed $param
      * @return bool
      */
@@ -383,6 +435,16 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     }
 
     /**
+     * Sets the default action suffix
+     *
+     * @param string $actionSuffix
+     * @return void
+     */
+    public function setActionSuffix(string $actionSuffix): void
+    {
+    }
+
+    /**
      * Sets the default action name
      *
      * @param string $actionName
@@ -399,89 +461,6 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
      * @return void
      */
     public function setDefaultNamespace(string $defaultNamespace): void
-    {
-    }
-
-    /**
-     * Possible class name that will be located to dispatch the request
-     *
-     * @return string
-     */
-    public function getHandlerClass(): string
-    {
-    }
-
-    /**
-     * Set a param by its name or numeric index
-     *
-     * @todo deprecate this in the future
-     * @param mixed $param
-     * @param mixed $value
-     * @return void
-     */
-    public function setParam($param, $value): void
-    {
-    }
-
-    /**
-     * Set a param by its name or numeric index
-     *
-     * @param mixed $param
-     * @param mixed $value
-     * @return void
-     */
-    public function setParameter($param, $value): void
-    {
-    }
-
-    /**
-     * Sets action params to be dispatched
-     *
-     * @todo deprecate this in the future
-     * @param array $params
-     * @return void
-     */
-    public function setParams(array $params): void
-    {
-    }
-
-    /**
-     * Sets action params to be dispatched
-     *
-     * @param array $params
-     * @return void
-     */
-    public function setParameters(array $params): void
-    {
-    }
-
-    /**
-     * Sets the latest returned value by an action manually
-     *
-     * @param mixed $value
-     * @return void
-     */
-    public function setReturnedValue($value): void
-    {
-    }
-
-    /**
-     * Sets the default action suffix
-     *
-     * @param string $actionSuffix
-     * @return void
-     */
-    public function setActionSuffix(string $actionSuffix): void
-    {
-    }
-
-    /**
-     * Sets the events manager
-     *
-     * @param \Phalcon\Events\ManagerInterface $eventsManager
-     * @return void
-     */
-    public function setEventsManager(\Phalcon\Events\ManagerInterface $eventsManager): void
     {
     }
 
@@ -525,10 +504,10 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     /**
      * Sets the module where the controller is (only informative)
      *
-     * @param string $moduleName
+     * @param string|null $moduleName
      * @return void
      */
-    public function setModuleName(string $moduleName = null): void
+    public function setModuleName(?string $moduleName = null): void
     {
     }
 
@@ -543,11 +522,60 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     }
 
     /**
-     * Returns value returned by the latest dispatched action
+     * Set a param by its name or numeric index
      *
-     * @return mixed
+     * @deprecated Use setParameter() instead
+     * @param mixed $param
+     * @param mixed $value
+     * @return void
      */
-    public function getReturnedValue(): mixed
+    public function setParam($param, $value): void
+    {
+    }
+
+    /**
+     * Set a param by its name or numeric index
+     *
+     * @phpstan-param array-key $param
+     * @param mixed $param
+     * @param mixed $value
+     * @return void
+     */
+    public function setParameter($param, $value): void
+    {
+    }
+
+    /**
+     * Sets action params to be dispatched
+     *
+     * @phpstan-param dispatcher_params $params
+     * @param array $params
+     * @return void
+     */
+    public function setParameters(array $params): void
+    {
+    }
+
+    /**
+     * Sets action params to be dispatched
+     *
+     * @deprecated Use setParameters() instead
+     *
+     * @phpstan-param dispatcher_params $params
+     * @param array $params
+     * @return void
+     */
+    public function setParams(array $params): void
+    {
+    }
+
+    /**
+     * Sets the latest returned value by an action manually
+     *
+     * @param mixed $value
+     * @return void
+     */
+    public function setReturnedValue($value): void
     {
     }
 
@@ -561,6 +589,22 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     }
 
     /**
+     * Handles a user exception triggered inside the dispatch loop.
+     *
+     * Subclasses implement the namespace-specific behavior (typically firing
+     * the `dispatch:beforeException` event so listeners may forward or swallow
+     * the exception).
+     *
+     * @param \Exception $exception *
+     * @return mixed Return `false` to signal that the exception was handled
+     *               (swallowed) and the current loop iteration should stop.
+     *               Any other return value (including null) lets the caller
+     *               bubble the exception, unless a forward was requested
+     *               (`finished === false`).
+     */
+    abstract protected function handleException(\Exception $exception);
+
+    /**
      * Set empty properties to their defaults (where defaults are available)
      *
      * @return void
@@ -568,6 +612,19 @@ abstract class AbstractDispatcher extends AbstractInjectionAware implements \Pha
     protected function resolveEmptyProperties(): void
     {
     }
+
+    /**
+     * Throws an internal dispatch exception.
+     *
+     * Subclasses build the namespace-specific exception and route it through
+     * handleException() before throwing it when it was not handled.
+     *
+     * @param string $message
+     * @param int $exceptionCode *
+     * @return mixed Returns `false` when handleException() swallowed the
+     *               exception; otherwise the method throws and does not return.
+     */
+    abstract protected function throwDispatchException(string $message, int $exceptionCode = 0);
 
     /**
      * @param string $input

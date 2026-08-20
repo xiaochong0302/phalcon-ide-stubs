@@ -9,6 +9,9 @@
  */
 namespace Phalcon\Assets;
 
+use Phalcon\Assets\Traits\AttributesTrait;
+use Phalcon\Traits\Php\HashTrait;
+
 /**
  * Represents an inline asset
  *
@@ -18,10 +21,9 @@ namespace Phalcon\Assets;
  */
 class Inline implements \Phalcon\Assets\AssetInterface
 {
-    /**
-     * @var array
-     */
-    protected $attributes;
+    use \Phalcon\Assets\Traits\AttributesTrait;
+    use \Phalcon\Traits\Php\HashTrait;
+
 
     /**
      * @var string
@@ -60,13 +62,8 @@ class Inline implements \Phalcon\Assets\AssetInterface
     }
 
     /**
-     * @return array
-     */
-    public function getAttributes(): array
-    {
-    }
-
-    /**
+     * Gets if the asset content
+     *
      * @return string
      */
     public function getContent(): string
@@ -74,6 +71,8 @@ class Inline implements \Phalcon\Assets\AssetInterface
     }
 
     /**
+     * Gets if the asset must be filtered or not.
+     *
      * @return bool
      */
     public function getFilter(): bool
@@ -81,6 +80,8 @@ class Inline implements \Phalcon\Assets\AssetInterface
     }
 
     /**
+     * Gets the asset's type.
+     *
      * @return string
      */
     public function getType(): string

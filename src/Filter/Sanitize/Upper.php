@@ -9,13 +9,20 @@
  */
 namespace Phalcon\Filter\Sanitize;
 
+use Phalcon\Contracts\Filter\Sanitizer;
+use Phalcon\Traits\Php\MbCaseTrait;
+
 /**
  * Phalcon\Filter\Sanitize\Upper
  *
  * Sanitizes a value to uppercase
  */
-class Upper
+class Upper implements \Phalcon\Contracts\Filter\Sanitizer
 {
+    use \Phalcon\Traits\Php\MbCaseTrait;
+
+
+
     /**
      * @param string $input The text to sanitize
      *

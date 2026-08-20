@@ -9,7 +9,9 @@
  */
 namespace Phalcon\Support\Helper\Json;
 
-use InvalidArgumentException;
+use JsonException;
+use Phalcon\Support\Helper\Json\Exceptions\JsonEncodeError;
+use Phalcon\Traits\Support\Helper\Json\EncodeTrait;
 
 /**
  * Encodes a string using `json_encode` and throws an exception if the
@@ -22,21 +24,24 @@ use InvalidArgumentException;
  *
  * If JSON_THROW_ON_ERROR is defined in the options a JsonException will be
  * thrown in the case of an error. Otherwise, any error will throw
- * InvalidArgumentException
+ * JsonEncodeError
  *
  * @see  https://www.ietf.org/rfc/rfc4627.txt
  */
 class Encode
 {
+    use \Phalcon\Traits\Support\Helper\Json\EncodeTrait;
+
+
+
     /**
-     * @param mixed $data    JSON data to parse
-     * @param int   $options Bitmask of JSON encode options.
-     * @param int   $depth   Recursion depth.
+     * @param int<1, max> $depth   Recursion depth.
      *
-     * @return string
-     *
-     * @throws InvalidArgumentException if the JSON cannot be encoded.
+     * @throws JsonEncodeError if the JSON cannot be encoded.
      * @link https://www.php.net/manual/en/function.json-encode.php
+     * @param mixed $data
+     * @param int $options
+     * @return string
      */
     public function __invoke($data, int $options = 79, int $depth = 512): string
     {

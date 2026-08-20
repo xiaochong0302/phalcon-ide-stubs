@@ -26,6 +26,11 @@ abstract class AbstractHelper
     protected $delimiter = '';
 
     /**
+     * @var Doctype|null
+     */
+    protected $doctype = null;
+
+    /**
      * @var EscaperInterface
      */
     protected $escaper;
@@ -44,8 +49,9 @@ abstract class AbstractHelper
      * AbstractHelper constructor.
      *
      * @param EscaperInterface $escaper
+     * @param Doctype|null $doctype
      */
-    public function __construct(\Phalcon\Html\Escaper\EscaperInterface $escaper)
+    public function __construct(\Phalcon\Html\Escaper\EscaperInterface $escaper, ?Doctype $doctype = null)
     {
     }
 
@@ -62,6 +68,22 @@ abstract class AbstractHelper
     }
 
     /**
+     * Forces a single key into the attribute array, stripping any user-supplied
+     * value for that key first. Used by helpers whose first positional argument
+     * is itself an attribute (`href` for Anchor, `src` for Img, etc.) to make
+     * sure that argument always wins.
+     *
+     * @param string $key
+     * @param string $value
+     * @param array  $attributes
+     *
+     * @return array
+     */
+    protected function injectAttribute(string $key, string $value, array $attributes): array
+    {
+    }
+
+    /**
      * Replicates the indent x times as per indentLevel
      *
      * @return string
@@ -71,7 +93,7 @@ abstract class AbstractHelper
     }
 
     /**
-     * Keeps all the attributes sorted - same order all the tome
+     * Keeps all the attributes sorted - same order all the time
      *
      * @param array $overrides
      * @param array $attributes

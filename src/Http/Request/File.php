@@ -9,6 +9,9 @@
  */
 namespace Phalcon\Http\Request;
 
+use Phalcon\Contracts\Http\HttpTypes;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
 /**
  * Phalcon\Http\Request\File
  *
@@ -31,63 +34,45 @@ namespace Phalcon\Http\Request;
  *     }
  * }
  * ```
+ *
+ * @phpstan-import-type http_uploaded_file from HttpTypes
  */
 class File implements \Phalcon\Http\Request\FileInterface
 {
-    /**
-     * @var string|null
-     */
-    protected $error = null;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
+    protected int $error = 0;
+
+    protected string $extension = '';
+
+    protected string $key = '';
+
+    protected string $name = '';
+
+    protected string $realType;
+
+    protected int $size = 0;
+
+    protected string $tmpName = '';
+
+    protected string $type = '';
 
     /**
-     * @var string
-     */
-    protected $extension;
-
-    /**
-     * @var string|null
-     */
-    protected $key = null;
-
-    /**
-     * @var string
-     */
-    protected $name;
-
-    /**
-     * @var string
-     */
-    protected $realType;
-
-    /**
-     * @var int
-     */
-    protected $size = 0;
-
-    /**
-     * @var string|null
-     */
-    protected $tmp = null;
-
-    /**
-     * @var string
-     */
-    protected $type;
-
-    /**
-     * Phalcon\Http\Request\File constructor
+     * Constructor
      *
+     * @phpstan-param http_uploaded_file $file
      * @param array $file
-     * @param mixed $key
+     * @param string $key
      */
-    public function __construct(array $file, $key = null)
+    public function __construct(array $file, string $key = '')
     {
     }
 
     /**
-     * @return string|null
+     * @return int
      */
-    public function getError(): string|null
+    public function getError(): int
     {
     }
 
@@ -99,9 +84,9 @@ class File implements \Phalcon\Http\Request\FileInterface
     }
 
     /**
-     * @return string|null
+     * @return string
      */
-    public function getKey(): string|null
+    public function getKey(): string
     {
     }
 
@@ -167,17 +152,6 @@ class File implements \Phalcon\Http\Request\FileInterface
      * @return bool
      */
     public function moveTo(string $destination): bool
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    private function getArrVal(array $collection, $index, $defaultValue = null): mixed
     {
     }
 }

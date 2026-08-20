@@ -10,7 +10,11 @@
 namespace Phalcon\Translate;
 
 use Phalcon\Factory\AbstractFactory;
+use Phalcon\Translate\Exceptions\InterpolatorNotRegistered;
+use Phalcon\Translate\Interpolator\AssociativeArray;
+use Phalcon\Translate\Interpolator\IndexedArray;
 use Phalcon\Translate\Interpolator\InterpolatorInterface;
+use Throwable;
 
 /**
  * This file is part of the Phalcon Framework.
@@ -23,8 +27,7 @@ use Phalcon\Translate\Interpolator\InterpolatorInterface;
 class InterpolatorFactory extends AbstractFactory
 {
     /**
-     * InterpolatorFactor constructor.
-     *
+     * @phpstan-param array<string, string> $services
      * @param array $services
      */
     public function __construct(array $services = [])
@@ -35,16 +38,14 @@ class InterpolatorFactory extends AbstractFactory
      * Create a new instance of the adapter
      *
      * @param string $name
-     *
      * @return InterpolatorInterface
-     * @throws Exception
      */
     public function newInstance(string $name): InterpolatorInterface
     {
     }
 
     /**
-     * @return string
+     * @return class-string<Throwable>
      */
     protected function getExceptionClass(): string
     {

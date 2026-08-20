@@ -10,49 +10,38 @@
 namespace Phalcon\Messages;
 
 use JsonSerializable;
+use Phalcon\Contracts\Messages\MessagesTypes;
 
 /**
- * Phalcon\Messages\Message
+ * Class Message
  *
  * Stores a message from various components
+ *
+ * @phpstan-import-type messages_message from MessagesTypes
+ * @phpstan-import-type messages_metadata from MessagesTypes
  */
 class Message implements \Phalcon\Messages\MessageInterface, \JsonSerializable
 {
-    /**
-     * @var int
-     */
-    protected $code;
+    protected int $code = 0;
 
-    /**
-     * @var string
-     */
-    protected $field;
+    protected string $field = '';
 
-    /**
-     * @var string
-     */
-    protected $message;
+    protected string $message;
 
-    /**
-     * @var string
-     */
-    protected $type;
+    protected array $metaData = [];
 
-    /**
-     * @var array
-     */
-    protected $metaData = [];
+    protected string $type = '';
 
     /**
      * Phalcon\Messages\Message constructor
      *
+     * @param messages_metadata $metaData
      * @param string $message
-     * @param mixed $field
+     * @param string $field
      * @param string $type
      * @param int $code
-     * @param array $metaData
      */
-    public function __construct(string $message, $field = '', string $type = '', int $code = 0, array $metaData = [])
+    public function __construct(string $message, string $field = '', string $type = '', int $code = 0, array $metaData = [])
     {
     }
 
@@ -87,6 +76,13 @@ class Message implements \Phalcon\Messages\MessageInterface, \JsonSerializable
     }
 
     /**
+     * @return messages_metadata
+     */
+    public function getMetaData(): array
+    {
+    }
+
+    /**
      * @return string
      */
     public function getType(): string
@@ -94,16 +90,9 @@ class Message implements \Phalcon\Messages\MessageInterface, \JsonSerializable
     }
 
     /**
-     * @return array
-     */
-    public function getMetaData(): array
-    {
-    }
-
-    /**
      * Serializes the object for json_encode
      *
-     * @return array
+     * @return messages_message
      */
     public function jsonSerialize(): array
     {
@@ -122,10 +111,10 @@ class Message implements \Phalcon\Messages\MessageInterface, \JsonSerializable
     /**
      * Sets field name related to message
      *
-     * @param mixed $field
+     * @param string $field
      * @return MessageInterface
      */
-    public function setField($field): MessageInterface
+    public function setField(string $field): MessageInterface
     {
     }
 
@@ -142,7 +131,7 @@ class Message implements \Phalcon\Messages\MessageInterface, \JsonSerializable
     /**
      * Sets message metadata
      *
-     * @param array $metaData
+     * @param messages_metadata $metaData
      * @return MessageInterface
      */
     public function setMetaData(array $metaData): MessageInterface

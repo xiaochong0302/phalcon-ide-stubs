@@ -9,8 +9,11 @@
  */
 namespace Phalcon\Annotations\Adapter;
 
-use Phalcon\Annotations\Reflection;
 use Phalcon\Annotations\Exception;
+use Phalcon\Annotations\Exceptions\AnnotationsDirectoryNotWritable;
+use Phalcon\Annotations\Exceptions\CannotReadAnnotationData;
+use Phalcon\Annotations\Reflection;
+use Phalcon\Traits\Php\FileTrait;
 use RuntimeException;
 
 /**
@@ -28,6 +31,9 @@ use RuntimeException;
  */
 class Stream extends \Phalcon\Annotations\Adapter\AbstractAdapter
 {
+    use \Phalcon\Traits\Php\FileTrait;
+
+
     /**
      * @var string
      */

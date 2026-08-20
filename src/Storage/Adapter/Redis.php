@@ -11,21 +11,37 @@ namespace Phalcon\Storage\Adapter;
 
 use DateInterval;
 use Exception as BaseException;
+use Phalcon\Contracts\Storage\StorageTypes;
 use Phalcon\Storage\Exception as StorageException;
+use Phalcon\Storage\Exceptions\AuthenticationFailed;
+use Phalcon\Storage\Exceptions\ConnectionFailed;
+use Phalcon\Storage\Exceptions\DatabaseSelectionFailed;
 use Phalcon\Storage\SerializerFactory;
-use Phalcon\Support\Exception as SupportException;
+use Redis as RedisService;
+use RedisException;
 
 /**
  * Redis adapter
  *
- * @property array $options
+ * Capabilities:
+ * - Counters: native atomic (incrBy()/decrBy()).
+ * - getKeys(): non-blocking SCAN iteration.
+ * - Serializers: Phalcon-side, or backend-native via OPT_SERIALIZER. Native
+ *   serializers change the bytes at rest and are not interchangeable with
+ *   Phalcon-side serializers.
+ *
+ * @phpstan-import-type storage_keys from StorageTypes
+ * @phpstan-import-type storage_options from StorageTypes
+ * @phpstan-import-type storage_redis_context from StorageTypes
+ * @phpstan-import-type storage_redis_options from StorageTypes
+ * @phpstan-import-type storage_redis_settings from StorageTypes
+ *
+ * @phpstan-property RedisService|null $adapter
+ * @phpstan-property storage_redis_settings $options
  */
 class Redis extends \Phalcon\Storage\Adapter\AbstractAdapter
 {
-    /**
-     * @var string
-     */
-    protected $prefix = 'ph-reds-';
+    protected string $prefix = 'ph-reds-';
 
     /**
      * Redis constructor.
@@ -46,7 +62,7 @@ class Redis extends \Phalcon\Storage\Adapter\AbstractAdapter
      *     "ssl"            => [],
      * ]
      *
-     * @throws SupportException
+     * @phpstan-param storage_redis_options $options
      */
     public function __construct(\Phalcon\Storage\SerializerFactory $factory, array $options = [])
     {
@@ -63,35 +79,14 @@ class Redis extends \Phalcon\Storage\Adapter\AbstractAdapter
     }
 
     /**
-     * Decrements a stored number
-     *
-     * @param string $key
-     * @param int    $value
-     *
-     * @return bool|int
-     * @throws StorageException
-     */
-    public function decrement(string $key, int $value = 1): int|bool
-    {
-    }
-
-    /**
-     * Reads data from the adapter
-     *
-     * @param string $key
-     *
-     * @return bool
-     * @throws StorageException
-     */
-    public function delete(string $key): bool
-    {
-    }
-
-    /**
      * Returns the already connected adapter or connects to the Redis
      * server(s)
      *
-     * @return mixed|\Redis
+     * The return type is deliberately left wide: RedisCluster extends this
+     * adapter and hands back a `RedisCluster` client, which is not a `Redis`.
+     * Callers inside this class narrow it to `RedisService` locally.
+     *
+     * @return mixed|RedisService
      * @throws StorageException
      */
     public function getAdapter(): mixed
@@ -99,39 +94,96 @@ class Redis extends \Phalcon\Storage\Adapter\AbstractAdapter
     }
 
     /**
-     * Stores data in the adapter
+     * Returns all the keys stored
      *
+     * SCAN replaces the blocking KEYS command. SCAN_NOPREFIX keeps the prefix
+     * handling explicit: the physical prefix is matched and returned unchanged,
+     * so getFilteredKeys() sees exactly what KEYS produced.
+     *
+     * @phpstan-return storage_keys
      * @param string $prefix
-     *
      * @return array
-     * @throws StorageException
      */
     public function getKeys(string $prefix = ''): array
     {
     }
 
     /**
-     * Checks if an element exists in the cache
+     * Stores data in the adapter forever. The key needs to manually deleted
+     * from the adapter.
+     *
+     * @throws StorageException
+     * @throws RedisException
+     * @param string $key
+     * @param mixed $data
+     * @return bool
+     */
+    public function setForever(string $key, $data): bool
+    {
+    }
+
+    /**
+     * Decrements a stored number
      *
      * @param string $key
+     * @param int    $value
      *
-     * @return bool
+     * @throws RedisException
      * @throws StorageException
+     * @return false|int
      */
-    public function has(string $key): bool
+    protected function doDecrement(string $key, int $value = 1): int|false
+    {
+    }
+
+    /**
+     * Deletes data from the adapter
+     *
+     * @throws RedisException
+     * @throws StorageException
+     * @param string $key
+     * @return bool
+     */
+    protected function doDelete(string $key): bool
+    {
+    }
+
+    /**
+     * Deletes multiple keys from Redis using a single unlink call
+     *
+     * @phpstan-param storage_keys $keys
+     *
+     * @throws RedisException
+     * @throws StorageException
+     * @param array $keys
+     * @return bool
+     */
+    protected function doDeleteMultiple(array $keys): bool
+    {
+    }
+
+    /**
+     * Checks if an element exists in the cache
+     *
+     * @throws RedisException
+     * @throws StorageException
+     * @param string $key
+     * @return bool
+     */
+    protected function doHas(string $key): bool
     {
     }
 
     /**
      * Increments a stored number
      *
-     * @param string $key
-     * @param int    $value
-     *
-     * @return bool|false|int
+     * @throws RedisException
      * @throws StorageException
+     * @param string $key
+     * @param int $value
+     * @return false|int
      */
-    public function increment(string $key, int $value = 1): int|bool
+    protected function doIncrement(string $key, int $value = 1): int|false
     {
     }
 
@@ -149,50 +201,50 @@ class Redis extends \Phalcon\Storage\Adapter\AbstractAdapter
      * @return bool
      * @throws BaseException
      */
-    public function set(string $key, $value, $ttl = null): bool
+    protected function doSet(string $key, $value, $ttl = null): bool
     {
     }
 
     /**
-     * Stores data in the adapter forever. The key needs to manually deleted
-     * from the adapter.
+     * The parameter is the raw, user supplied options array; `RedisCluster`
+     * overrides this method with its own set of keys, so the two signatures
+     * have to agree on the wider type.
      *
-     * @param string $key
-     * @param mixed  $value
+     * @phpstan-param storage_options $options
      *
-     * @return bool
+     * @phpstan-return storage_options
+     * @param array $options
+     * @return array
      */
-    public function setForever(string $key, $value): bool
+    protected function getDefaultOptions(array $options): array
     {
     }
 
     /**
+     * @param RedisService $connection
+     *
+     * @throws AuthenticationFailed
+     * @return static
+     */
+    private function checkAuth(\Redis $connection): static
+    {
+    }
+
+    /**
+     * @throws ConnectionFailed
      * @param \Redis $connection
-     *
-     * @return Redis
-     * @throws StorageException
+     * @return static
      */
-    private function checkAuth(\Redis $connection): Redis
+    private function checkConnect(\Redis $connection): static
     {
     }
 
     /**
+     * @throws DatabaseSelectionFailed
      * @param \Redis $connection
-     *
-     * @return Redis
-     * @throws StorageException
+     * @return static
      */
-    private function checkConnect(\Redis $connection): Redis
-    {
-    }
-
-    /**
-     * @param \Redis $connection
-     *
-     * @return Redis
-     * @throws StorageException
-     */
-    private function checkIndex(\Redis $connection): Redis
+    private function checkIndex(\Redis $connection): static
     {
     }
 
@@ -200,6 +252,7 @@ class Redis extends \Phalcon\Storage\Adapter\AbstractAdapter
      * Checks the serializer. If it is a supported one it is set, otherwise
      * the custom one is set.
      *
+     * @throws BaseException
      * @param \Redis $connection
      * @return void
      */

@@ -17,5 +17,8 @@ use Phalcon\Storage\Adapter\Weak as StorageWeak;
  */
 class Weak extends \Phalcon\Storage\Adapter\Weak implements CacheAdapterInterface
 {
-    protected $eventType = 'cache';
+    /**
+     * EventType prefix.
+     */
+    protected string $eventType = 'cache';
 }

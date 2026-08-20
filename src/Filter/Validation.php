@@ -13,12 +13,21 @@ use Phalcon\Di\Di;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\Injectable;
 use Phalcon\Filter\FilterInterface;
+use Phalcon\Filter\Validation\AbstractCombinedFieldsValidator;
+use Phalcon\Filter\Validation\Exception;
+use Phalcon\Filter\Validation\Exceptions\FilterServiceUnavailable;
+use Phalcon\Filter\Validation\Exceptions\InvalidFieldType;
+use Phalcon\Filter\Validation\Exceptions\InvalidFilterService;
+use Phalcon\Filter\Validation\Exceptions\InvalidValidationData;
+use Phalcon\Filter\Validation\Exceptions\InvalidValidator;
+use Phalcon\Filter\Validation\Exceptions\InvalidValidatorScope;
+use Phalcon\Filter\Validation\Exceptions\NoDataToValidate;
+use Phalcon\Filter\Validation\Exceptions\NoValidators;
+use Phalcon\Filter\Validation\Exceptions\ValidationEntityNotObject;
+use Phalcon\Filter\Validation\ValidationInterface;
+use Phalcon\Filter\Validation\ValidatorInterface;
 use Phalcon\Messages\MessageInterface;
 use Phalcon\Messages\Messages;
-use Phalcon\Filter\Validation\ValidationInterface;
-use Phalcon\Filter\Validation\Exception;
-use Phalcon\Filter\Validation\ValidatorInterface;
-use Phalcon\Filter\Validation\AbstractCombinedFieldsValidator;
 
 /**
  * Allows to validate data using custom or built-in validators
@@ -36,6 +45,18 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
     protected $data;
 
     /**
+     * Default messages for validators, keyed by validator class name
+     *
+     * Declared without an array initializer on purpose: an initialized static
+     * array makes Zephir emit a zephir_init_static_properties() function that
+     * fails to compile in the single-file build. It is null until first set
+     * and treated as an empty array by the accessors below.
+     *
+     * @var array
+     */
+    protected static $defaultMessages = [];
+
+    /**
      * @var object|null
      */
     protected $entity = null;
@@ -48,12 +69,17 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
     /**
      * @var array
      */
+    protected $whitelist = [];
+
+    /**
+     * @var array
+     */
     protected $labels = [];
 
     /**
-     * @var Messages|null
+     * @var Messages
      */
-    protected $messages = null;
+    protected $messages;
 
     /**
      * List of validators
@@ -84,9 +110,9 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      * @param string|array       $field
      * @param ValidatorInterface $validator
      *
-     * @return ValidationInterface
+     * @return static
      */
-    public function add($field, \Phalcon\Filter\Validation\ValidatorInterface $validator): ValidationInterface
+    public function add($field, \Phalcon\Filter\Validation\ValidatorInterface $validator): static
     {
     }
 
@@ -94,9 +120,9 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      * Appends a message to the messages list
      *
      * @param MessageInterface $message
-     * @return ValidationInterface
+     * @return static
      */
-    public function appendMessage(\Phalcon\Messages\MessageInterface $message): ValidationInterface
+    public function appendMessage(\Phalcon\Messages\MessageInterface $message): static
     {
     }
 
@@ -104,11 +130,20 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      * Assigns the data to an entity
      * The entity is used to obtain the validation values
      *
-     * @param object $entity
-     * @param array|object $data
-     * @return ValidationInterface
+     * ```php
+     * $entity = new Author();
+     * $fields = ['name', 'email', 'imageUrl'];
+     * $validation = new AuthorValidation();
+     * $validation->bind($entity, $_POST, $fields);
+     * $validation->validate();
+     * ```
+     *
+     * @param object $entity the entity object to assign data to
+     * @param array|object $data the data that needs to be validated
+     * @param array $whitelist only allow these fields to be mutated when entity is used
+     * @return static
      */
-    public function bind($entity, $data): ValidationInterface
+    public function bind($entity, $data, array $whitelist = []): static
     {
     }
 
@@ -116,6 +151,18 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      * @return mixed
      */
     public function getData(): mixed
+    {
+    }
+
+    /**
+     * Returns the default message registered for a validator class, or an
+     * empty string when none has been registered.
+     *
+     * @param string $validatorClassName
+     *
+     * @return string
+     */
+    public static function getDefaultMessage(string $validatorClassName): string
     {
     }
 
@@ -131,10 +178,10 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
     /**
      * Returns all the filters or a specific one
      *
-     * @param string $field
+     * @param string|null $field
      * @return mixed|null
      */
-    public function getFilters(string $field = null): mixed
+    public function getFilters(?string $field = null): mixed
     {
     }
 
@@ -204,9 +251,9 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      * @param string|array       $field
      * @param ValidatorInterface $validator
      *
-     * @return ValidationInterface
+     * @return static
      */
-    public function rule($field, \Phalcon\Filter\Validation\ValidatorInterface $validator): ValidationInterface
+    public function rule($field, \Phalcon\Filter\Validation\ValidatorInterface $validator): static
     {
     }
 
@@ -215,9 +262,23 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      *
      * @param mixed $field
      * @param array $validators
-     * @return ValidationInterface
+     * @return static
      */
-    public function rules($field, array $validators): ValidationInterface
+    public function rules($field, array $validators): static
+    {
+    }
+
+    /**
+     * Registers default messages for validators, keyed by validator class
+     * name. A registered default is used when a validator does not define its
+     * own message; a message set on the validator instance still wins. Calls
+     * are merged, so defaults can be registered incrementally.
+     *
+     * @param array $messages
+     *
+     * @return array
+     */
+    public static function setDefaultMessages(array $messages = []): array
     {
     }
 
@@ -236,9 +297,9 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
      *
      * @param string $field
      * @param array|string $filters
-     * @return ValidationInterface
+     * @return static
      */
-    public function setFilters($field, $filters): ValidationInterface
+    public function setFilters($field, $filters): static
     {
     }
 
@@ -253,21 +314,50 @@ class Validation extends Injectable implements \Phalcon\Filter\Validation\Valida
     }
 
     /**
+     * Sets the validator array
+     *
      * @param array $validators
-     * @return Validation
+     * @return static
      */
-    public function setValidators(array $validators): Validation
+    public function setValidators(array $validators): static
     {
     }
 
     /**
      * Validate a set of data according to a set of rules
      *
-     * @param array|object $data
-     * @param object $entity *
+     * You can use $validation->bind(entity, data, whitelist)->validate()
+     * When you use bind(), the this->data is already set, so you can reuse it here
+     *
+     * ```php
+     * // using bind() with $whitelist fields
+     * $entity = new Author();
+     * $fields = ['name', 'email', 'imageUrl'];
+     * $validation = new AuthorValidation();
+     * $validation->bind($entity, $_POST, $fields);
+     * $validation->validate();
+     *
+     * // directly using validate
+     * $validation = new AuthorValidation();
+     * $validation->validate($_POST, $entity, $fields);
+     * ```
+     *
+     * @param array|object $data the data that needs to be validated
+     * @param object $entity the entity object to assign data to
+     * @param array $whitelist only allow these fields to be mutated when entity is used
+     *
      * @return Messages|false
      */
-    public function validate($data = null, $entity = null): Messages|bool
+    public function validate($data = null, $entity = null, array $whitelist = []): Messages|bool
+    {
+    }
+
+    /**
+     * Verify if validation fails by verifying if there are messages in the current validation
+     *
+     * @return bool
+     */
+    public function fails(): bool
     {
     }
 

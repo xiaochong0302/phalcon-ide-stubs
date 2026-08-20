@@ -10,9 +10,25 @@
 namespace Phalcon\Encryption;
 
 use Phalcon\Encryption\Crypt\CryptInterface;
+use Phalcon\Encryption\Crypt\Exception\DecryptionFailed;
+use Phalcon\Encryption\Crypt\Exception\EmptyDecryptionKey;
+use Phalcon\Encryption\Crypt\Exception\EmptyEncryptionKey;
+use Phalcon\Encryption\Crypt\Exception\EncryptionFailed;
 use Phalcon\Encryption\Crypt\Exception\Exception;
+use Phalcon\Encryption\Crypt\Exception\InvalidAuthTagLength;
+use Phalcon\Encryption\Crypt\Exception\InvalidDecryptLength;
+use Phalcon\Encryption\Crypt\Exception\InvalidPaddingSize;
+use Phalcon\Encryption\Crypt\Exception\IvLengthCalculationFailed;
 use Phalcon\Encryption\Crypt\Exception\Mismatch;
+use Phalcon\Encryption\Crypt\Exception\MissingAuthData;
+use Phalcon\Encryption\Crypt\Exception\MissingOpensslExtension;
+use Phalcon\Encryption\Crypt\Exception\RandomBytesGenerationFailed;
+use Phalcon\Encryption\Crypt\Exception\UnsupportedAlgorithm;
 use Phalcon\Encryption\Crypt\PadFactory;
+use Phalcon\Traits\Php\Base64Trait;
+use Phalcon\Traits\Php\HashTrait;
+use Phalcon\Traits\Php\InfoTrait;
+use Phalcon\Traits\Php\OpensslTrait;
 
 /**
  * Provides encryption capabilities to Phalcon applications.
@@ -35,29 +51,57 @@ use Phalcon\Encryption\Crypt\PadFactory;
  */
 class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
 {
-    /**
-     * Defaults
-     */
-    const DEFAULT_ALGORITHM = 'sha256';
+    use \Phalcon\Traits\Php\Base64Trait;
+    use \Phalcon\Traits\Php\HashTrait;
+    use \Phalcon\Traits\Php\InfoTrait;
+    use \Phalcon\Traits\Php\OpensslTrait;
 
-    const DEFAULT_CIPHER = 'aes-256-cfb';
+    /**
+     * @var string
+     */
+    const string DEFAULT_ALGORITHM = 'sha256';
+
+    /**
+     * @var string
+     */
+    const string DEFAULT_CIPHER = 'aes-256-cfb';
 
     /**
      * Padding
+     *
+     * @var int
      */
-    const PADDING_ANSI_X_923 = 1;
+    const int PADDING_ANSI_X_923 = 1;
 
-    const PADDING_DEFAULT = 0;
+    /**
+     * @var int
+     */
+    const int PADDING_DEFAULT = 0;
 
-    const PADDING_ISO_10126 = 3;
+    /**
+     * @var int
+     */
+    const int PADDING_ISO_10126 = 3;
 
-    const PADDING_ISO_IEC_7816_4 = 4;
+    /**
+     * @var int
+     */
+    const int PADDING_ISO_IEC_7816_4 = 4;
 
-    const PADDING_PKCS7 = 2;
+    /**
+     * @var int
+     */
+    const int PADDING_PKCS7 = 2;
 
-    const PADDING_SPACE = 6;
+    /**
+     * @var int
+     */
+    const int PADDING_SPACE = 6;
 
-    const PADDING_ZERO = 5;
+    /**
+     * @var int
+     */
+    const int PADDING_ZERO = 5;
 
     /**
      * @var string
@@ -92,6 +136,16 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      * @var string
      */
     protected $hashAlgorithm = self::DEFAULT_ALGORITHM;
+
+    /**
+     * Memoized `strlen(hash($algo, "", true))` results, keyed by
+     * algorithm name. The hash output length is deterministic for a
+     * given algorithm, so this collapses the per-decrypt strlen+hash
+     * call to a single hash lookup after warm-up.
+     *
+     * @var array
+     */
+    protected $hashLengthCache = [];
 
     /**
      * The cipher iv length.
@@ -131,7 +185,7 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      *
      * @throws Exception
      */
-    public function __construct(string $cipher = self::DEFAULT_CIPHER, bool $useSigning = true, \Phalcon\Encryption\Crypt\PadFactory $padFactory = null)
+    public function __construct(string $cipher = self::DEFAULT_CIPHER, bool $useSigning = true, ?\Phalcon\Encryption\Crypt\PadFactory $padFactory = null)
     {
     }
 
@@ -150,9 +204,10 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      *
      * @return string
      * @throws Exception
+     * @throws InvalidDecryptLength
      * @throws Mismatch
      */
-    public function decrypt(string $input, string $key = null): string
+    public function decrypt(string $input, ?string $key = null): string
     {
     }
 
@@ -167,7 +222,7 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      * @throws Exception
      * @throws Mismatch
      */
-    public function decryptBase64(string $input, string $key = null, bool $safe = false): string
+    public function decryptBase64(string $input, ?string $key = null, bool $safe = false): string
     {
     }
 
@@ -187,7 +242,7 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      * @return string
      * @throws Exception
      */
-    public function encrypt(string $input, string $key = null): string
+    public function encrypt(string $input, ?string $key = null): string
     {
     }
 
@@ -201,13 +256,14 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      * @return string
      * @throws Exception
      */
-    public function encryptBase64(string $input, string $key = null, bool $safe = false): string
+    public function encryptBase64(string $input, ?string $key = null, bool $safe = false): string
     {
     }
 
     /**
      * Returns a list of available ciphers.
      *
+     * @phpstan-return array<array-key, string>
      * @return array
      */
     public function getAvailableCiphers(): array
@@ -311,6 +367,7 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      * @param int $length
      *
      * @return CryptInterface
+     * @throws InvalidAuthTagLength
      */
     public function setAuthTagLength(int $length): CryptInterface
     {
@@ -356,10 +413,10 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      *
      * @param string $hashAlgorithm
      *
-     * @return CryptInterface
+     * @return static
      * @throws Exception
      */
-    public function setHashAlgorithm(string $hashAlgorithm): CryptInterface
+    public function setHashAlgorithm(string $hashAlgorithm): static
     {
     }
 
@@ -484,10 +541,10 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
     /**
      * Initialize available cipher algorithms.
      *
-     * @return Crypt
+     * @return static
      * @throws Exception
      */
-    protected function initializeAvailableCiphers(): Crypt
+    protected function initializeAvailableCiphers(): static
     {
     }
 
@@ -533,30 +590,6 @@ class Crypt implements \Phalcon\Encryption\Crypt\CryptInterface
      * @return string
      */
     private function getMode(): string
-    {
-    }
-
-    /**
-     * @todo to be removed when we get traits
-     * @param string $name
-     * @return bool
-     */
-    protected function phpFunctionExists(string $name): bool
-    {
-    }
-
-    /**
-     * @param string $cipher
-     * @return int|bool
-     */
-    protected function phpOpensslCipherIvLength(string $cipher): int|bool
-    {
-    }
-
-    /**
-     * @param int $length
-     */
-    protected function phpOpensslRandomPseudoBytes(int $length)
     {
     }
 }

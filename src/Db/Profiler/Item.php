@@ -9,11 +9,16 @@
  */
 namespace Phalcon\Db\Profiler;
 
+use Phalcon\Db\Traits\ElapsedTimeTrait;
+
 /**
  * This class identifies each profile in a Phalcon\Db\Profiler
  */
 class Item
 {
+    use \Phalcon\Db\Traits\ElapsedTimeTrait;
+
+
     /**
      * Timestamp when the profile ended
      *
@@ -104,30 +109,12 @@ class Item
     }
 
     /**
-     * Returns the total time in milliseconds spent by the profile
-     *
-     * @return float
-     */
-    public function getTotalElapsedMilliseconds(): float
-    {
-    }
-
-    /**
-     * Returns the total time in seconds spent by the profile
-     *
-     * @return float
-     */
-    public function getTotalElapsedSeconds(): float
-    {
-    }
-
-    /**
      * Return the timestamp when the profile ended
      *
      * @param double $finalTime
-     * @return Item
+     * @return static
      */
-    public function setFinalTime(float $finalTime): Item
+    public function setFinalTime(float $finalTime): static
     {
     }
 
@@ -135,9 +122,9 @@ class Item
      * Return the timestamp when the profile started
      *
      * @param double $initialTime
-     * @return Item
+     * @return static
      */
-    public function setInitialTime(float $initialTime): Item
+    public function setInitialTime(float $initialTime): static
     {
     }
 
@@ -145,9 +132,9 @@ class Item
      * Return the SQL bind types related to the profile
      *
      * @param array $sqlBindTypes
-     * @return Item
+     * @return static
      */
-    public function setSqlBindTypes(array $sqlBindTypes): Item
+    public function setSqlBindTypes(array $sqlBindTypes): static
     {
     }
 
@@ -155,9 +142,9 @@ class Item
      * Return the SQL statement related to the profile
      *
      * @param string $sqlStatement
-     * @return Item
+     * @return static
      */
-    public function setSqlStatement(string $sqlStatement): Item
+    public function setSqlStatement(string $sqlStatement): static
     {
     }
 
@@ -165,9 +152,9 @@ class Item
      * Return the SQL variables related to the profile
      *
      * @param array $sqlVariables
-     * @return Item
+     * @return static
      */
-    public function setSqlVariables(array $sqlVariables): Item
+    public function setSqlVariables(array $sqlVariables): static
     {
     }
 }

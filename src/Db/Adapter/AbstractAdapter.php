@@ -9,17 +9,27 @@
  */
 namespace Phalcon\Db\Adapter;
 
-use Phalcon\Db\DialectInterface;
+use Phalcon\Db\CheckInterface;
 use Phalcon\Db\ColumnInterface;
+use Phalcon\Db\DialectInterface;
 use Phalcon\Db\Enum;
 use Phalcon\Db\Exception;
+use Phalcon\Db\Exceptions\CannotInsertWithoutData;
+use Phalcon\Db\Exceptions\IncompleteBindTypes;
+use Phalcon\Db\Exceptions\InvalidDialectClass;
+use Phalcon\Db\Exceptions\InvalidWhereConditions;
+use Phalcon\Db\Exceptions\NestedTransactionChangeBlocked;
+use Phalcon\Db\Exceptions\SavepointsNotSupported;
+use Phalcon\Db\Exceptions\TableMustHaveColumn;
+use Phalcon\Db\Exceptions\UpdateFieldCountMismatch;
 use Phalcon\Db\Index;
 use Phalcon\Db\IndexInterface;
+use Phalcon\Db\RawValue;
 use Phalcon\Db\Reference;
 use Phalcon\Db\ReferenceInterface;
-use Phalcon\Db\RawValue;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Support\Settings;
 
 /**
  * Base class for Phalcon\Db\Adapter adapters.
@@ -92,7 +102,7 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
     /**
      * Dialect instance
      *
-     * @var object
+     * @var DialectInterface
      */
     protected $dialect;
 
@@ -173,6 +183,10 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      *     'dsn' => null,
      *     'charset' => 'utf8mb4'
      * ]
+     *
+     * Note: the `options` key is forwarded to the static `setup()` method,
+     * which writes process-global settings affecting every connection in the
+     * process. See `setup()`.
      */
     public function __construct(array $descriptor)
     {
@@ -187,6 +201,19 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * @return bool
      */
     public function addColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column): bool
+    {
+    }
+
+    /**
+     * Adds a CHECK constraint to a table. MySQL 8.0.16+ and PostgreSQL
+     * issue `ALTER TABLE ... ADD CONSTRAINT ... CHECK (...)`; SQLite throws.
+     *
+     * @param string $tableName
+     * @param string $schemaName
+     * @param \Phalcon\Db\CheckInterface $check
+     * @return bool
+     */
+    public function addCheck(string $tableName, string $schemaName, \Phalcon\Db\CheckInterface $check): bool
     {
     }
 
@@ -253,10 +280,10 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      *
      * @param string $viewName
      * @param array $definition
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return bool
      */
-    public function createView(string $viewName, array $definition, string $schemaName = null): bool
+    public function createView(string $viewName, array $definition, ?string $schemaName = null): bool
     {
     }
 
@@ -264,15 +291,17 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Deletes data from a table using custom RBDM SQL syntax
      *
      * ```php
-     * // Deleting existing robot
+     * // Deleting existing invoice
      * $success = $connection->delete(
-     *     "robots",
-     *     "id = 101"
+     *     "co_invoices",
+     *     "inv_id = 101"
      * );
      *
      * // Next SQL sentence is generated
-     * DELETE FROM `robots` WHERE `id` = 101
+     * DELETE FROM `co_invoices` WHERE `inv_id` = 101
      * ```
+     *
+     * Warning! If $whereCondition is string it not escaped.
      *
      * @param array|string $table
      * @param string|null $whereCondition
@@ -280,7 +309,7 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * @param array $dataTypes *
      * @return bool
      */
-    public function delete($table, string $whereCondition = null, array $placeholders = [], array $dataTypes = []): bool
+    public function delete($table, ?string $whereCondition = null, array $placeholders = [], array $dataTypes = []): bool
     {
     }
 
@@ -289,15 +318,22 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      *
      * ```php
      * print_r(
-     *     $connection->describeIndexes("robots_parts")
+     *     $connection->describeIndexes("co_orders_x_products")
      * );
      * ```
      *
+     * This base implementation consumes the dialect's `describeIndexes()` SQL
+     * as `FETCH_NUM` rows by position: column index 2 is the index key name and
+     * column index 4 is the indexed column name. A custom dialect's
+     * `describeIndexes()` SQL must emit columns in that order, or a custom
+     * adapter must override this method. All bundled adapters except PostgreSQL
+     * override it.
+     *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\IndexInterface[]
      */
-    public function describeIndexes(string $table, string $schema = null): array
+    public function describeIndexes(string $table, ?string $schema = null): array
     {
     }
 
@@ -306,15 +342,24 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      *
      * ```php
      * print_r(
-     *     $connection->describeReferences("robots_parts")
+     *     $connection->describeReferences("co_orders_x_products")
      * );
      * ```
      *
+     * This base implementation consumes the dialect's `describeReferences()`
+     * SQL as `FETCH_NUM` rows by position: index 1 is the local column, index 2
+     * the constraint name, index 3 the referenced schema, index 4 the
+     * referenced table, and index 5 the referenced column. A custom dialect's
+     * `describeReferences()` SQL must emit columns in that order, or a custom
+     * adapter must override this method. Every bundled adapter (MySQL,
+     * PostgreSQL, SQLite) overrides it, so this base implementation has no
+     * in-tree caller and effectively assumes the PostgreSQL row shape.
+     *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ReferenceInterface[]
      */
-    public function describeReferences(string $table, string $schema = null): array
+    public function describeReferences(string $table, ?string $schema = null): array
     {
     }
 
@@ -327,6 +372,18 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * @return bool
      */
     public function dropColumn(string $tableName, string $schemaName, string $columnName): bool
+    {
+    }
+
+    /**
+     * Drops a CHECK constraint from a table. SQLite throws.
+     *
+     * @param string $tableName
+     * @param string $schemaName
+     * @param string $checkName
+     * @return bool
+     */
+    public function dropCheck(string $tableName, string $schemaName, string $checkName): bool
     {
     }
 
@@ -369,11 +426,11 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Drops a table from a schema/database
      *
      * @param string $tableName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @param bool $ifExists
      * @return bool
      */
-    public function dropTable(string $tableName, string $schemaName = null, bool $ifExists = true): bool
+    public function dropTable(string $tableName, ?string $schemaName = null, bool $ifExists = true): bool
     {
     }
 
@@ -381,11 +438,11 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Drops a view
      *
      * @param string $viewName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @param bool $ifExists
      * @return bool
      */
-    public function dropView(string $viewName, string $schemaName = null, bool $ifExists = true): bool
+    public function dropView(string $viewName, ?string $schemaName = null, bool $ifExists = true): bool
     {
     }
 
@@ -394,13 +451,13 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      *
      * ```php
      * $escapedTable = $connection->escapeIdentifier(
-     *     "robots"
+     *     "co_invoices"
      * );
      *
      * $escapedTable = $connection->escapeIdentifier(
      *     [
      *         "store",
-     *         "robots",
+     *         "co_invoices",
      *     ]
      * );
      * ```
@@ -416,26 +473,26 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Dumps the complete result of a query into an array
      *
      * ```php
-     * // Getting all robots with associative indexes only
-     * $robots = $connection->fetchAll(
-     *     "SELECT FROM robots",
+     * // Getting all invoices with associative indexes only
+     * $invoices = $connection->fetchAll(
+     *     "SELECT FROM co_invoices",
      *     \Phalcon\Db\Enum::FETCH_ASSOC
      * );
      *
-     * foreach ($robots as $robot) {
-     *     print_r($robot);
+     * foreach ($invoices as $invoice) {
+     *     print_r($invoice);
      * }
      *
-     *  // Getting all robots that contains word "robot" withing the name
-     * $robots = $connection->fetchAll(
-     *     "SELECT FROM robots WHERE name LIKE :name",
+     *  // Getting all invoices whose title contains the word "Test"
+     * $invoices = $connection->fetchAll(
+     *     "SELECT FROM co_invoices WHERE inv_title LIKE :inv_title",
      *     \Phalcon\Db\Enum::FETCH_ASSOC,
      *     [
-     *         "name" => "%robot%",
+     *         "inv_title" => "%Test%",
      *     ]
      * );
-     * foreach($robots as $robot) {
-     *     print_r($robot);
+     * foreach($invoices as $invoice) {
+     *     print_r($invoice);
      * }
      * ```
      *
@@ -453,16 +510,16 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Returns the n'th field of first row in a SQL query result
      *
      * ```php
-     * // Getting count of robots
-     * $robotsCount = $connection->fetchColumn("SELECT count() FROM robots");
-     * print_r($robotsCount);
+     * // Getting count of invoices
+     * $invoicesCount = $connection->fetchColumn("SELECT count() FROM co_invoices");
+     * print_r($invoicesCount);
      *
-     * // Getting name of last edited robot
-     * $robot = $connection->fetchColumn(
-     *     "SELECT id, name FROM robots ORDER BY modified DESC",
+     * // Getting the title of the last created invoice
+     * $invoice = $connection->fetchColumn(
+     *     "SELECT inv_id, inv_title FROM co_invoices ORDER BY inv_created_at DESC",
      *     1
      * );
-     * print_r($robot);
+     * print_r($invoice);
      * ```
      *
      * @param string $sqlQuery
@@ -478,16 +535,16 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Returns the first row in a SQL query result
      *
      * ```php
-     * // Getting first robot
-     * $robot = $connection->fetchOne("SELECT FROM robots");
-     * print_r($robot);
+     * // Getting first invoice
+     * $invoice = $connection->fetchOne("SELECT FROM co_invoices");
+     * print_r($invoice);
      *
-     * // Getting first robot with associative indexes only
-     * $robot = $connection->fetchOne(
-     *     "SELECT FROM robots",
+     * // Getting first invoice with associative indexes only
+     * $invoice = $connection->fetchOne(
+     *     "SELECT FROM co_invoices",
      *     \Phalcon\Db\Enum::FETCH_ASSOC
      * );
-     * print_r($robot);
+     * print_r($invoice);
      * ```
      *
      * @param string $sqlQuery
@@ -501,12 +558,15 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
     }
 
     /**
-     * Returns a SQL modified with a FOR UPDATE clause
+     * Returns a SQL modified with a FOR UPDATE clause. The optional
+     * `modifier` is passed straight to the dialect (use `Dialect::LOCK_NOWAIT`
+     * / `Dialect::LOCK_SKIP_LOCKED` / `Dialect::LOCK_NONE`).
      *
      * @param string $sqlQuery
+     * @param string $modifier
      * @return string
      */
-    public function forUpdate(string $sqlQuery): string
+    public function forUpdate(string $sqlQuery, string $modifier = ''): string
     {
     }
 
@@ -533,9 +593,9 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
     /**
      * Gets the active connection unique identifier
      *
-     * @return string
+     * @return int
      */
-    public function getConnectionId(): string
+    public function getConnectionId(): int
     {
     }
 
@@ -543,18 +603,18 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Returns the default identity value to be inserted in an identity column
      *
      * ```php
-     * // Inserting a new robot with a valid default value for the column 'id'
+     * // Inserting a new invoice with a valid default value for the column 'inv_id'
      * $success = $connection->insert(
-     *     "robots",
+     *     "co_invoices",
      *     [
      *         $connection->getDefaultIdValue(),
-     *         "Astro Boy",
-     *         1952,
+     *         "Test Invoice",
+     *         100,
      *     ],
      *     [
-     *         "id",
-     *         "name",
-     *         "year",
+     *         "inv_id",
+     *         "inv_title",
+     *         "inv_total",
      *     ]
      * );
      * ```
@@ -570,16 +630,16 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * in the table definition
      *
      * ```php
-     * // Inserting a new robot with a valid default value for the column 'year'
+     * // Inserting a new invoice with a valid default value for the column 'inv_total'
      * $success = $connection->insert(
-     *     "robots",
+     *     "co_invoices",
      *     [
-     *         "Astro Boy",
+     *         "Test Invoice",
      *         $connection->getDefaultValue()
      *     ],
      *     [
-     *         "name",
-     *         "year",
+     *         "inv_title",
+     *         "inv_total",
      *     ]
      * );
      * ```
@@ -685,15 +745,15 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Inserts data into a table using custom RDBMS SQL syntax
      *
      * ```php
-     * // Inserting a new robot
+     * // Inserting a new invoice
      * $success = $connection->insert(
-     *     "robots",
-     *     ["Astro Boy", 1952],
-     *     ["name", "year"]
+     *     "co_invoices",
+     *     ["Test Invoice", 100],
+     *     ["inv_title", "inv_total"]
      * );
      *
      * // Next SQL sentence is sent to the database system
-     * INSERT INTO `robots` (`name`, `year`) VALUES ("Astro boy", 1952);
+     * INSERT INTO `co_invoices` (`inv_title`, `inv_total`) VALUES ("Test Invoice", 100);
      * ```
      *
      * @param string $table
@@ -710,17 +770,17 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Inserts data into a table using custom RBDM SQL syntax
      *
      * ```php
-     * // Inserting a new robot
+     * // Inserting a new invoice
      * $success = $connection->insertAsDict(
-     *     "robots",
+     *     "co_invoices",
      *     [
-     *         "name" => "Astro Boy",
-     *         "year" => 1952,
+     *         "inv_title" => "Test Invoice",
+     *         "inv_total" => 100,
      *     ]
      * );
      *
      * // Next SQL sentence is sent to the database system
-     * INSERT INTO `robots` (`name`, `year`) VALUES ("Astro boy", 1952);
+     * INSERT INTO `co_invoices` (`inv_title`, `inv_total`) VALUES ("Test Invoice", 100);
      * ```
      *
      * @param string $table
@@ -745,14 +805,14 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Appends a LIMIT clause to $sqlQuery argument
      *
      * ```php
-     * echo $connection->limit("SELECT FROM robots", 5);
+     * echo $connection->limit("SELECT FROM co_invoices", 5);
      * ```
      *
      * @param string $sqlQuery
-     * @param int $number
+     * @param mixed $number
      * @return string
      */
-    public function limit(string $sqlQuery, int $number): string
+    public function limit(string $sqlQuery, $number): string
     {
     }
 
@@ -765,10 +825,10 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * );
      * ```
      *
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return array
      */
-    public function listTables(string $schemaName = null): array
+    public function listTables(?string $schemaName = null): array
     {
     }
 
@@ -781,10 +841,10 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * );
      * ```
      *
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return array
      */
-    public function listViews(string $schemaName = null): array
+    public function listViews(?string $schemaName = null): array
     {
     }
 
@@ -794,10 +854,10 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * @param string $tableName
      * @param string $schemaName
      * @param \Phalcon\Db\ColumnInterface $column
-     * @param \Phalcon\Db\ColumnInterface $currentColumn
+     * @param \Phalcon\Db\ColumnInterface|null $currentColumn
      * @return bool
      */
-    public function modifyColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column, \Phalcon\Db\ColumnInterface $currentColumn = null): bool
+    public function modifyColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column, ?\Phalcon\Db\ColumnInterface $currentColumn = null): bool
     {
     }
 
@@ -851,7 +911,15 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
     }
 
     /**
-     * Enables/disables options in the Database component
+     * Enables/disables options in the Database component.
+     *
+     * The flags are stored as process-global `Phalcon\Support\Settings`
+     * (`db.escape_identifiers`, `db.force_casting`) and therefore affect every
+     * connection in the process at once, last-writer-wins. Call this once at
+     * bootstrap; it is not per-connection configuration. Because the
+     * constructor calls `setup()` whenever a descriptor carries an `options`
+     * key, constructing one adapter with `options` can change the SQL another,
+     * already-configured connection generates.
      *
      * @param array $options
      * @return void
@@ -861,12 +929,80 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
     }
 
     /**
-     * Returns a SQL modified with a LOCK IN SHARE MODE clause
+     * Returns a SQL modified with a shared-lock clause. The optional
+     * `modifier` is passed straight to the dialect (use
+     * `Dialect::LOCK_NOWAIT` / `Dialect::LOCK_SKIP_LOCKED` for PostgreSQL).
      *
      * @param string $sqlQuery
+     * @param string $modifier
      * @return string
      */
-    public function sharedLock(string $sqlQuery): string
+    public function sharedLock(string $sqlQuery, string $modifier = ''): string
+    {
+    }
+
+    /**
+     * Creates a materialized view (PostgreSQL only - MySQL and SQLite
+     * throw via the dialect).
+     *
+     * @param string $viewName
+     * @param array $definition
+     * @param string|null $schemaName
+     * @return bool
+     */
+    public function createMaterializedView(string $viewName, array $definition, ?string $schemaName = null): bool
+    {
+    }
+
+    /**
+     * Drops a materialized view (PostgreSQL only).
+     *
+     * @param string $viewName
+     * @param string|null $schemaName
+     * @param bool $ifExists
+     * @return bool
+     */
+    public function dropMaterializedView(string $viewName, ?string $schemaName = null, bool $ifExists = true): bool
+    {
+    }
+
+    /**
+     * Refreshes a materialized view (PostgreSQL only). Pass
+     * `concurrent = true` for non-blocking refresh.
+     *
+     * @param string $viewName
+     * @param string|null $schemaName
+     * @param bool $concurrent
+     * @return bool
+     */
+    public function refreshMaterializedView(string $viewName, ?string $schemaName = null, bool $concurrent = false): bool
+    {
+    }
+
+    /**
+     * Appends an `ON CONFLICT (...) DO UPDATE SET col = excluded.col`
+     * upsert clause to the supplied INSERT statement. Supported by
+     * PostgreSQL and SQLite 3.24+; MySQL throws.
+     *
+     * @param string $sqlQuery
+     * @param array $conflictColumns
+     * @param array $updateColumns
+     * @return string
+     */
+    public function onConflictUpdate(string $sqlQuery, array $conflictColumns, array $updateColumns): string
+    {
+    }
+
+    /**
+     * Appends a RETURNING clause to an INSERT/UPDATE/DELETE SQL statement
+     * and returns the modified SQL. Supported by PostgreSQL and SQLite 3.35+;
+     * MySQL throws (no RETURNING construct). Pass `[""]` for `RETURNING`.
+     *
+     * @param string $sqlQuery
+     * @param array $columns
+     * @return string
+     */
+    public function returning(string $sqlQuery, array $columns): string
     {
     }
 
@@ -890,10 +1026,10 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * ```
      *
      * @param string $tableName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return bool
      */
-    public function tableExists(string $tableName, string $schemaName = null): bool
+    public function tableExists(string $tableName, ?string $schemaName = null): bool
     {
     }
 
@@ -902,15 +1038,15 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      *
      * ```php
      * print_r(
-     *     $connection->tableOptions("robots")
+     *     $connection->tableOptions("co_invoices")
      * );
      * ```
      *
      * @param string $tableName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return array
      */
-    public function tableOptions(string $tableName, string $schemaName = null): array
+    public function tableOptions(string $tableName, ?string $schemaName = null): array
     {
     }
 
@@ -918,24 +1054,24 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Updates data on a table using custom RBDM SQL syntax
      *
      * ```php
-     * // Updating existing robot
+     * // Updating existing invoice
      * $success = $connection->update(
-     *     "robots",
-     *     ["name"],
-     *     ["New Astro Boy"],
-     *     "id = 101"
+     *     "co_invoices",
+     *     ["inv_title"],
+     *     ["New Test Invoice"],
+     *     "inv_id = 101"
      * );
      *
      * // Next SQL sentence is sent to the database system
-     * UPDATE `robots` SET `name` = "Astro boy" WHERE id = 101
+     * UPDATE `co_invoices` SET `inv_title` = "New Test Invoice" WHERE inv_id = 101
      *
-     * // Updating existing robot with array condition and $dataTypes
+     * // Updating existing invoice with array condition and $dataTypes
      * $success = $connection->update(
-     *     "robots",
-     *     ["name"],
-     *     ["New Astro Boy"],
+     *     "co_invoices",
+     *     ["inv_title"],
+     *     ["New Test Invoice"],
      *     [
-     *         "conditions" => "id = ?",
+     *         "conditions" => "inv_id = ?",
      *         "bind"       => [$some_unsafe_id],
      *         "bindTypes"  => [PDO::PARAM_INT], // use only if you use $dataTypes param
      *     ],
@@ -964,17 +1100,17 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Another, more convenient syntax
      *
      * ```php
-     * // Updating existing robot
+     * // Updating existing invoice
      * $success = $connection->updateAsDict(
-     *     "robots",
+     *     "co_invoices",
      *     [
-     *         "name" => "New Astro Boy",
+     *         "inv_title" => "New Test Invoice",
      *     ],
-     *     "id = 101"
+     *     "inv_id = 101"
      * );
      *
      * // Next SQL sentence is sent to the database system
-     * UPDATE `robots` SET `name` = "Astro boy" WHERE id = 101
+     * UPDATE `co_invoices` SET `inv_title` = "New Test Invoice" WHERE inv_id = 101
      * ```
      *
      * @param string $table
@@ -1001,7 +1137,7 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * Check whether the database system support the DEFAULT
      * keyword (SQLite does not support it)
      *
-     * @deprecated Will re removed in the next version
+     * @deprecated Will be removed in a future major release.
      * @return bool
      */
     public function supportsDefaultValue(): bool
@@ -1018,10 +1154,35 @@ abstract class AbstractAdapter implements \Phalcon\Db\Adapter\AdapterInterface, 
      * ```
      *
      * @param string $viewName
-     * @param string $schemaName
+     * @param string|null $schemaName
      * @return bool
      */
-    public function viewExists(string $viewName, string $schemaName = null): bool
+    public function viewExists(string $viewName, ?string $schemaName = null): bool
+    {
+    }
+
+    /**
+     * Builds the SQL value fragment for a single INSERT/UPDATE value, shared by
+     * insert() and update(). RawValue instances are inlined as raw SQL, objects
+     * are cast via __toString, null becomes the literal "null", and every other
+     * value becomes a "?" placeholder.
+     *
+     * Zephir cannot mutate caller arrays by reference, so the bound value and
+     * bind type are returned for the caller to collect. The returned array has:
+     *
+     *  - "placeholder": string  - the SQL fragment ("null", "?", or raw SQL)
+     *  - "bind":        bool    - whether "value" must be bound
+     *  - "value":       mixed   - the value to bind (when "bind" is true)
+     *  - "hasBindType": bool    - whether "bindType" must be collected
+     *  - "bindType":    mixed   - the bind type to collect (when applicable)
+     *
+     * @param mixed $value
+     * @param mixed $position
+     * @param mixed $dataTypes
+     *
+     * @return array
+     */
+    private function buildValuePlaceholder($value, $position, $dataTypes): array
     {
     }
 }

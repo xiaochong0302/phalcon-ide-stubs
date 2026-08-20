@@ -10,12 +10,13 @@
 namespace Phalcon\Forms\Element;
 
 use InvalidArgumentException;
-use Phalcon\Di\DiInterface;
 use Phalcon\Di\Di;
+use Phalcon\Di\DiInterface;
 use Phalcon\Filter\Validation\ValidatorInterface;
-use Phalcon\Forms\Form;
 use Phalcon\Forms\Exception;
-use Phalcon\Html\Escaper;
+use Phalcon\Forms\Exceptions\FormElementNameRequired;
+use Phalcon\Forms\Exceptions\InvalidFilterType;
+use Phalcon\Forms\Form;
 use Phalcon\Html\TagFactory;
 use Phalcon\Messages\MessageInterface;
 use Phalcon\Messages\Messages;
@@ -199,9 +200,9 @@ abstract class AbstractElement implements \Phalcon\Forms\Element\ElementInterfac
     /**
      * Returns the element label
      *
-     * @return string
+     * @return string|null
      */
-    public function getLabel(): string
+    public function getLabel(): string|null
     {
     }
 
@@ -386,9 +387,9 @@ abstract class AbstractElement implements \Phalcon\Forms\Element\ElementInterfac
      * Sets the TagFactory
      *
      * @param \Phalcon\Html\TagFactory $tagFactory
-     * @return AbstractElement
+     * @return static
      */
-    public function setTagFactory(\Phalcon\Html\TagFactory $tagFactory): AbstractElement
+    public function setTagFactory(\Phalcon\Html\TagFactory $tagFactory): static
     {
     }
 

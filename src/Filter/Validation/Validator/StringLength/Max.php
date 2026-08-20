@@ -13,11 +13,17 @@ use Phalcon\Messages\Message;
 use Phalcon\Filter\Validation;
 use Phalcon\Filter\Validation\AbstractValidator;
 use Phalcon\Filter\Validation\Exception;
+use Phalcon\Traits\Php\InfoTrait;
 
 /**
  * Validates that a string has the specified maximum constraints
  * The test is passed if for a string's length L, L<=max, i.e. L must
  * be at most max.
+ *
+ * The "included" option is true by default. Set the option to false
+ * for L<max, i.e. L must be less than max. The "includedMaximum" option
+ * is an alias of "included". If you set the two options, "included" has
+ * precedence.
  *
  * ```php
  * use Phalcon\Filter\Validation;
@@ -62,6 +68,9 @@ use Phalcon\Filter\Validation\Exception;
  */
 class Max extends AbstractValidator
 {
+    use \Phalcon\Traits\Php\InfoTrait;
+
+
     protected $template = 'Field :field must not exceed :max characters long';
 
     /**
@@ -72,7 +81,8 @@ class Max extends AbstractValidator
      *     'template' => '',
      *     'allowEmpty' => false,
      *     'max' => 1000,
-     *     'included' => false
+     *     'included' => true,
+     *     'includedMaximum' => true
      * ]
      */
     public function __construct(array $options = [])

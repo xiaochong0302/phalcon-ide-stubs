@@ -12,6 +12,7 @@ namespace Phalcon\Cli;
 use Phalcon\Di\Injectable;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Events\Traits\EventsAwareTrait;
 
 /**
  * Every command-line task should extend this class that encapsulates all the
@@ -36,37 +37,21 @@ use Phalcon\Events\ManagerInterface;
  *     }
  * }
  * ```
+ *
+ * Action methods receive the routed parameters as positional arguments,
+ * followed by any CLI options the dispatcher collected (appended as trailing
+ * arguments). Declare optional trailing parameters to read those options.
  */
 class Task extends Injectable implements \Phalcon\Cli\TaskInterface, \Phalcon\Events\EventsAwareInterface
 {
-    /**
-     * @var ManagerInterface
-     */
-    protected $eventsManager;
+    use \Phalcon\Events\Traits\EventsAwareTrait;
+
+
 
     /**
      * Phalcon\Cli\Task constructor
      */
     final public function __construct()
-    {
-    }
-
-    /**
-     * Returns the internal event manager
-     *
-     * @return ManagerInterface|null
-     */
-    public function getEventsManager(): ManagerInterface|null
-    {
-    }
-
-    /**
-     * Sets the events manager
-     *
-     * @param \Phalcon\Events\ManagerInterface $eventsManager
-     * @return void
-     */
-    public function setEventsManager(\Phalcon\Events\ManagerInterface $eventsManager): void
     {
     }
 }

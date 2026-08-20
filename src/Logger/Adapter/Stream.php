@@ -9,9 +9,11 @@
  */
 namespace Phalcon\Logger\Adapter;
 
-use LogicException;
+use Phalcon\Logger\Adapter\Exceptions\FileOpenFailed;
+use Phalcon\Logger\Adapter\Exceptions\InvalidStreamMode;
 use Phalcon\Logger\Exception;
 use Phalcon\Logger\Item;
+use Phalcon\Traits\Php\FileTrait;
 
 /**
  * Phalcon\Logger\Adapter\Stream
@@ -22,46 +24,44 @@ use Phalcon\Logger\Item;
  * $logger = new \Phalcon\Logger\Adapter\Stream('app/logs/test.log');
  *
  * $logger->log('This is a message');
- * $logger->log(\Phalcon\Logger::ERROR, 'This is an error');
+ * $logger->log(\Phalcon\Logger\Enum::ERROR, 'This is an error');
  * $logger->error('This is another error');
  *
  * $logger->close();
  * ```
  *
+ * @property resource|null $handler
  * @property string        $mode
  * @property string        $name
- * @property array         $options
  */
 class Stream extends \Phalcon\Logger\Adapter\AbstractAdapter
 {
+    use \Phalcon\Traits\Php\FileTrait;
+
+
+    /**
+     * Stream handler resource
+     *
+     * @var resource|null
+     */
+    protected $handler = null;
+
     /**
      * The file open mode. Defaults to 'ab'
-     *
-     * @var string
      */
-    protected $mode = 'ab';
+    protected string $mode = 'ab';
 
     /**
      * Stream name
-     *
-     * @var string
      */
-    protected $name;
-
-    /**
-     * Path options
-     *
-     * @var array
-     */
-    protected $options;
+    protected string $name;
 
     /**
      * Stream constructor.
      *
+     * @throws InvalidStreamMode
      * @param string $name
-     * @param array  $options
-     *
-     * @throws Exception
+     * @param array $options
      */
     public function __construct(string $name, array $options = [])
     {
@@ -88,19 +88,10 @@ class Stream extends \Phalcon\Logger\Adapter\AbstractAdapter
     /**
      * Processes the message i.e. writes it to the file
      *
-     * @param Item $item
+     * @param \Phalcon\Logger\Item $item
      * @return void
      */
     public function process(\Phalcon\Logger\Item $item): void
-    {
-    }
-
-    /**
-     * @todo to be removed when we get traits
-     * @param string $filename
-     * @param string $mode
-     */
-    protected function phpFopen(string $filename, string $mode)
     {
     }
 }

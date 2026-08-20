@@ -9,42 +9,35 @@
  */
 namespace Phalcon\Translate\Adapter;
 
-use ArrayAccess;
+use Phalcon\Contracts\Translate\TranslateTypes;
 use Phalcon\Translate\Exception;
+use Phalcon\Translate\Exceptions\InvalidDataType;
+use Phalcon\Translate\Exceptions\MissingContent;
 use Phalcon\Translate\InterpolatorFactory;
 
 /**
- * Class NativeArray
- *
  * Defines translation lists using PHP arrays
  *
- * @package Phalcon\Translate\Adapter
- *
- * @property array $translate
- * @property bool  $triggerError
+ * @phpstan-import-type translate_array_options from TranslateTypes
+ * @phpstan-import-type translate_data from TranslateTypes
+ * @phpstan-import-type translate_placeholders from TranslateTypes
  */
-class NativeArray extends \Phalcon\Translate\Adapter\AbstractAdapter implements \ArrayAccess
+class NativeArray extends \Phalcon\Translate\Adapter\AbstractAdapter
 {
     /**
-     * @var array
+     * @phpstan-var translate_data
      */
-    private $translate = [];
-
-    /**
-     * @var bool
-     */
-    private $triggerError = false;
+    private array $translate = [];
 
     /**
      * NativeArray constructor.
      *
-     * @param InterpolatorFactory $interpolator
-     * @param array               $options = [
-     *                                'content'      => '',
-     *                                'triggerError' => false
-     *                            ]
+     * @phpstan-param translate_array_options $options
      *
-     * @throws Exception
+     * @throws InvalidDataType
+     * @throws MissingContent
+     * @param \Phalcon\Translate\InterpolatorFactory $interpolator
+     * @param array $options
      */
     public function __construct(\Phalcon\Translate\InterpolatorFactory $interpolator, array $options)
     {
@@ -53,10 +46,9 @@ class NativeArray extends \Phalcon\Translate\Adapter\AbstractAdapter implements 
     /**
      * Check whether is defined a translation key in the internal array
      *
-     * @param string $index
-     *
-     * @return bool
      * @deprecated
+     * @param string $index
+     * @return bool
      */
     public function exists(string $index): bool
     {
@@ -66,7 +58,6 @@ class NativeArray extends \Phalcon\Translate\Adapter\AbstractAdapter implements 
      * Check whether is defined a translation key in the internal array
      *
      * @param string $index
-     *
      * @return bool
      */
     public function has(string $index): bool
@@ -74,26 +65,14 @@ class NativeArray extends \Phalcon\Translate\Adapter\AbstractAdapter implements 
     }
 
     /**
-     * Whenever a key is not found this method will be called
-     *
-     * @param string $index
-     *
-     * @return string
-     * @throws Exception
-     */
-    public function notFound(string $index): string
-    {
-    }
-
-    /**
      * Returns the translation related to the given key
      *
-     * @param string $index
-     * @param array  $placeholders
+     * @phpstan-param translate_placeholders $placeholders
      *
-     * @return string
      * @throws Exception
      * @param string $translateKey
+     * @param array $placeholders
+     * @return string
      */
     public function query(string $translateKey, array $placeholders = []): string
     {
@@ -102,6 +81,7 @@ class NativeArray extends \Phalcon\Translate\Adapter\AbstractAdapter implements 
     /**
      * Returns the internal array
      *
+     * @phpstan-return translate_data
      * @return array
      */
     public function toArray(): array

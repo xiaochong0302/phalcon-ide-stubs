@@ -9,12 +9,15 @@
  */
 namespace Phalcon\Encryption;
 
+use Phalcon\Contracts\Encryption\Security\Security as SecurityContract;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\AbstractInjectionAware;
 use Phalcon\Http\RequestInterface;
-use Phalcon\Encryption\Security\Random;
 use Phalcon\Encryption\Security\Exception;
+use Phalcon\Encryption\Security\Exceptions\UnknownHashAlgorithm;
+use Phalcon\Encryption\Security\Random;
 use Phalcon\Session\ManagerInterface as SessionInterface;
+use Phalcon\Traits\Php\HashTrait;
 
 /**
  * This component provides a set of functions to improve the security in Phalcon
@@ -33,33 +36,89 @@ use Phalcon\Session\ManagerInterface as SessionInterface;
  * }
  * ```
  */
-class Security extends AbstractInjectionAware
+class Security extends AbstractInjectionAware implements SecurityContract
 {
-    const CRYPT_ARGON2I = 10;
+    use \Phalcon\Traits\Php\HashTrait;
 
-    const CRYPT_ARGON2ID = 11;
+    /**
+     * @var int
+     */
+    const int CRYPT_ARGON2I = 10;
 
-    const CRYPT_BCRYPT = 0;
+    /**
+     * @var int
+     */
+    const int CRYPT_ARGON2ID = 11;
 
-    const CRYPT_DEFAULT = 0;
+    /**
+     * @var int
+     */
+    const int CRYPT_BCRYPT = 0;
 
-    const CRYPT_BLOWFISH = 4;
+    /**
+     * @var int
+     */
+    const int CRYPT_DEFAULT = 0;
 
-    const CRYPT_BLOWFISH_A = 5;
+    /**
+     * @deprecated Not implemented; resolves to bcrypt. To be removed.
+     *
+     * @var int
+     */
+    const int CRYPT_BLOWFISH = 4;
 
-    const CRYPT_BLOWFISH_X = 6;
+    /**
+     * @var int
+     */
+    const int CRYPT_BLOWFISH_A = 5;
 
-    const CRYPT_BLOWFISH_Y = 7;
+    /**
+     * @var int
+     */
+    const int CRYPT_BLOWFISH_X = 6;
 
-    const CRYPT_EXT_DES = 2;
+    /**
+     * @deprecated Not implemented; resolves to bcrypt. To be removed.
+     *
+     * @var int
+     */
+    const int CRYPT_BLOWFISH_Y = 7;
 
-    const CRYPT_MD5 = 3;
+    /**
+     * @deprecated Not implemented; resolves to bcrypt. To be removed.
+     *
+     * @var int
+     */
+    const int CRYPT_EXT_DES = 2;
 
-    const CRYPT_SHA256 = 8;
+    /**
+     * @deprecated Weak legacy algorithm. To be removed.
+     *
+     * @var int
+     */
+    const int CRYPT_MD5 = 3;
 
-    const CRYPT_SHA512 = 9;
+    /**
+     * @var int
+     */
+    const int CRYPT_SHA256 = 8;
 
-    const CRYPT_STD_DES = 1;
+    /**
+     * @var int
+     */
+    const int CRYPT_SHA512 = 9;
+
+    /**
+     * @deprecated Not implemented; resolves to bcrypt. To be removed.
+     *
+     * @var int
+     */
+    const int CRYPT_STD_DES = 1;
+
+    /**
+     * @var bool
+     */
+    protected $autoRefresh = true;
 
     /**
      * @var int
@@ -122,7 +181,7 @@ class Security extends AbstractInjectionAware
      * @param SessionInterface|null $session
      * @param RequestInterface|null $request
      */
-    public function __construct(\Phalcon\Session\ManagerInterface $session = null, \Phalcon\Http\RequestInterface $request = null)
+    public function __construct(?\Phalcon\Session\ManagerInterface $session = null, ?\Phalcon\Http\RequestInterface $request = null)
     {
     }
 
@@ -150,7 +209,7 @@ class Security extends AbstractInjectionAware
      *
      * @return bool
      */
-    public function checkToken(string $tokenKey = null, $tokenValue = null, bool $destroyIfValid = true): bool
+    public function checkToken(?string $tokenKey = null, $tokenValue = null, bool $destroyIfValid = true): bool
     {
     }
 
@@ -164,17 +223,18 @@ class Security extends AbstractInjectionAware
      *
      * @return string
      * @throws Exception
+     * @param string $algorithm
      */
-    public function computeHmac(string $data, string $key, string $algo, bool $raw = false): string
+    public function computeHmac(string $data, string $key, string $algorithm, bool $raw = false): string
     {
     }
 
     /**
      * Removes the value of the CSRF token and key from session
      *
-     * @return Security
+     * @return static
      */
-    public function destroyToken(): Security
+    public function destroyToken(): static
     {
     }
 
@@ -280,6 +340,9 @@ class Security extends AbstractInjectionAware
     /**
      * Creates a password hash using bcrypt with a pseudo random salt
      *
+     * Any `defaultHash` value that is not explicitly handled (including the
+     * deprecated, unimplemented constants) resolves to bcrypt.
+     *
      * @param string $password
      * @param array  $options
      *
@@ -301,13 +364,39 @@ class Security extends AbstractInjectionAware
     }
 
     /**
+     * Forces the regeneration of the CSRF token and key, writing the new
+     * values to the session even when auto-refresh has been disabled. Useful
+     * after a successful login or any other state change where rotating the
+     * token is appropriate.
+     *
+     * @return static
+     */
+    public function refreshToken(): static
+    {
+    }
+
+    /**
+     * Toggles automatic regeneration of the CSRF token on every call to
+     * `getToken()` / `getTokenKey()`. When set to `false`, existing session
+     * values are reused (no session write), and a new token is only minted
+     * when none is present or `refreshToken()` is called explicitly.
+     *
+     * @param bool $autoRefresh
+     *
+     * @return static
+     */
+    public function setAutoRefresh(bool $autoRefresh): static
+    {
+    }
+
+    /**
      * Sets the default hash
      *
      * @param int $defaultHash
      *
-     * @return Security
+     * @return static
      */
-    public function setDefaultHash(int $defaultHash): Security
+    public function setDefaultHash(int $defaultHash): static
     {
     }
 
@@ -317,9 +406,9 @@ class Security extends AbstractInjectionAware
      *
      * @param int $randomBytes
      *
-     * @return Security
+     * @return static
      */
-    public function setRandomBytes(int $randomBytes): Security
+    public function setRandomBytes(int $randomBytes): static
     {
     }
 
@@ -328,9 +417,9 @@ class Security extends AbstractInjectionAware
      *
      * @param int $workFactor
      *
-     * @return Security
+     * @return static
      */
-    public function setWorkFactor(int $workFactor): Security
+    public function setWorkFactor(int $workFactor): static
     {
     }
 
@@ -383,7 +472,7 @@ class Security extends AbstractInjectionAware
      *
      * @return string|null
      */
-    private function processTokenKey(string $tokenKey = null): string|null
+    private function processTokenKey(?string $tokenKey = null): string|null
     {
     }
 
@@ -393,7 +482,7 @@ class Security extends AbstractInjectionAware
      *
      * @return string|null
      */
-    private function processUserToken(string $tokenKey, string $tokenValue = null): string|null
+    private function processUserToken(string $tokenKey, ?string $tokenValue = null): string|null
     {
     }
 }

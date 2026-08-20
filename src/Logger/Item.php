@@ -15,39 +15,18 @@ use DateTimeImmutable;
  * Phalcon\Logger\Item
  *
  * Represents each item in a logging transaction
- *
- * @property array             $context
- * @property string            $message
- * @property int               $level
- * @property string            $levelName
- * @property DateTimeImmutable $datetime
  */
 class Item
 {
-    /**
-     * @var array
-     */
-    protected $context = [];
+    protected array $context = [];
 
-    /**
-     * @var DateTimeImmutable
-     */
-    protected $dateTime;
+    protected \DateTimeImmutable $dateTime;
 
-    /**
-     * @var string
-     */
-    protected $message;
+    protected int $level;
 
-    /**
-     * @var int
-     */
-    protected $level;
+    protected string $levelName;
 
-    /**
-     * @var string
-     */
-    protected $levelName;
+    protected string $message;
 
     /**
      * Item constructor.
@@ -55,9 +34,8 @@ class Item
      * @param string            $message
      * @param string            $levelName
      * @param int               $level
-     * @param DateTimeImmutable $datetime
+     * @param DateTimeImmutable $dateTime
      * @param array             $context
-     * @param \DateTimeImmutable $dateTime
      */
     public function __construct(string $message, string $levelName, int $level, \DateTimeImmutable $dateTime, array $context = [])
     {
@@ -78,13 +56,6 @@ class Item
     }
 
     /**
-     * @return string
-     */
-    public function getMessage(): string
-    {
-    }
-
-    /**
      * @return int
      */
     public function getLevel(): int
@@ -95,6 +66,13 @@ class Item
      * @return string
      */
     public function getLevelName(): string
+    {
+    }
+
+    /**
+     * @return string
+     */
+    public function getMessage(): string
     {
     }
 }

@@ -9,53 +9,20 @@
  */
 namespace Phalcon\Acl;
 
+use Phalcon\Acl\Exceptions\ForbiddenWildcard;
+
 /**
  * This class defines role entity and its description
  */
-class Role implements \Phalcon\Acl\RoleInterface
+class Role extends \Phalcon\Acl\AbstractElement implements \Phalcon\Acl\RoleInterface
 {
-    /**
-     * Role description
-     *
-     * @var string
-     */
-    private $description;
-
-    /**
-     * Role name
-     *
-     * @var string
-     */
-    private $name;
-
     /**
      * Phalcon\Acl\Role constructor
      *
      * @param string $name
-     * @param string $description
+     * @param string|null $description
      */
-    public function __construct(string $name, string $description = null)
-    {
-    }
-
-    /**
-     * @return string
-     */
-    public function __toString(): string
-    {
-    }
-
-    /**
-     * @return string
-     */
-    public function getDescription(): string
-    {
-    }
-
-    /**
-     * @return string
-     */
-    public function getName(): string
+    public function __construct(string $name, ?string $description = null)
     {
     }
 }

@@ -9,11 +9,13 @@
  */
 namespace Phalcon\Logger;
 
-use DateTimeImmutable;
 use DateTimeZone;
 use Exception;
-use Phalcon\Logger\Exception as LoggerException;
 use Phalcon\Logger\Adapter\AdapterInterface;
+use Phalcon\Logger\Exceptions\AdapterNotFound;
+use Phalcon\Logger\Exceptions\NoAdaptersConfigured;
+use Phalcon\Time\Clock\ClockInterface;
+use Phalcon\Time\Clock\SystemClock;
 
 /**
  * Abstract Logger Class
@@ -28,81 +30,129 @@ use Phalcon\Logger\Adapter\AdapterInterface;
  * @property array              $excluded
  * @property int                $logLevel
  * @property string             $name
- * @property string             $timezone
+ * @property DateTimeZone       $timezone
  */
 abstract class AbstractLogger
 {
-    const ALERT = 2;
+    /**
+     * @var int
+     */
+    const int ALERT = 2;
 
-    const CRITICAL = 1;
+    /**
+     * @var int
+     */
+    const int CRITICAL = 1;
 
-    const CUSTOM = 8;
+    /**
+     * Default threshold and fallback sink. It sits between DEBUG (7) and
+     * TRACE (9) in the ordering, so the default log level excludes TRACE.
+     * It is also the fallback for unknown message levels and invalid
+     * setLogLevel() values.
+     *
+     * @var int
+     */
+    const int CUSTOM = 8;
 
-    const DEBUG = 7;
+    /**
+     * @var int
+     */
+    const int DEBUG = 7;
 
-    const EMERGENCY = 0;
+    /**
+     * @var int
+     */
+    const int EMERGENCY = 0;
 
-    const ERROR = 3;
+    /**
+     * @var int
+     */
+    const int ERROR = 3;
 
-    const INFO = 6;
+    /**
+     * @var int
+     */
+    const int INFO = 6;
 
-    const NOTICE = 5;
+    /**
+     * @var int
+     */
+    const int NOTICE = 5;
 
-    const WARNING = 4;
+    /**
+     * @var int
+     */
+    const int TRACE = 9;
+
+    /**
+     * @var int
+     */
+    const int WARNING = 4;
 
     /**
      * The adapter stack
      *
      * @var AdapterInterface[]
      */
-    protected $adapters = [];
+    protected array $adapters = [];
+
+    /**
+     * Clock used to timestamp log items
+     */
+    protected \Phalcon\Time\Clock\ClockInterface $clock;
 
     /**
      * The excluded adapters for this log process
-     *
-     * @var array
      */
-    protected $excluded = [];
+    protected array $excluded = [];
 
     /**
      * Minimum log level for the logger
-     *
-     * @var int
      */
-    protected $logLevel = 8;
+    protected int $logLevel = 8;
 
-    /**
-     * @var string
-     */
-    protected $name = '';
+    protected string $name = '';
 
-    /**
-     * @var DateTimeZone
-     */
-    protected $timezone;
+    protected \DateTimeZone $timezone;
 
     /**
      * Constructor.
      *
-     * @param string            $name     The name of the logger
-     * @param array             $adapters The collection of adapters to be used
-     *                                    for logging (default [])
-     * @param DateTimeZone|null $timezone Timezone. If omitted,
-     *                                    date_Default_timezone_get() is used
+     * @param string $name
+     * @param array $adapters
+     * @param \DateTimeZone|null $timezone
+     * @param \Phalcon\Time\Clock\ClockInterface|null $clock
      */
-    public function __construct(string $name, array $adapters = [], \DateTimeZone $timezone = null)
+    public function __construct(string $name, array $adapters = [], ?\DateTimeZone $timezone = null, ?\Phalcon\Time\Clock\ClockInterface $clock = null)
     {
     }
 
     /**
      * Add an adapter to the stack. For processing we use FIFO
      *
-     * @param string           $name    The name of the adapter
-     * @param AdapterInterface $adapter The adapter to add to the stack
-     *
-     * @return AbstractLogger
+     * @param string $name
+     * @param \Phalcon\Logger\Adapter\AdapterInterface $adapter
+     * @return static
      */
-    public function addAdapter(string $name, \Phalcon\Logger\Adapter\AdapterInterface $adapter): AbstractLogger
+    public function addAdapter(string $name, \Phalcon\Logger\Adapter\AdapterInterface $adapter): static
+    {
+    }
+
+    /**
+     * Starts a transaction on every (non-excluded) adapter in the stack.
+     *
+     * @return static
+     */
+    public function begin(): static
+    {
+    }
+
+    /**
+     * Commits the transaction on every (non-excluded) adapter in the stack.
+     *
+     * @return static
+     */
+    public function commit(): static
     {
     }
 
@@ -110,20 +160,18 @@ abstract class AbstractLogger
      * Exclude certain adapters.
      *
      * @param array $adapters
-     *
-     * @return AbstractLogger
+     * @return static
      */
-    public function excludeAdapters(array $adapters = []): AbstractLogger
+    public function excludeAdapters(array $adapters = []): static
     {
     }
 
     /**
      * Returns an adapter from the stack
      *
-     * @param string $name The name of the adapter
-     *
+     * @throws AdapterNotFound
+     * @param string $name
      * @return AdapterInterface
-     * @throws LoggerException
      */
     public function getAdapter(string $name): AdapterInterface
     {
@@ -159,47 +207,56 @@ abstract class AbstractLogger
     /**
      * Removes an adapter from the stack
      *
-     * @param string $name The name of the adapter
-     *
-     * @return AbstractLogger
-     * @throws LoggerException
+     * @throws AdapterNotFound
+     * @param string $name
+     * @return static
      */
-    public function removeAdapter(string $name): AbstractLogger
+    public function removeAdapter(string $name): static
+    {
+    }
+
+    /**
+     * Rolls back the transaction on every (non-excluded) adapter in the stack.
+     *
+     * @return static
+     */
+    public function rollback(): static
     {
     }
 
     /**
      * Sets the adapters stack overriding what is already there
      *
-     * @param array $adapters An array of adapters
-     *
-     * @return AbstractLogger
+     * @param array $adapters
+     * @return static
      */
-    public function setAdapters(array $adapters): AbstractLogger
+    public function setAdapters(array $adapters): static
     {
     }
 
     /**
-     * Sets the adapters stack overriding what is already there
+     * Sets the minimum log level for the logger.
+     *
+     * An unknown level is not rejected: it is stored as CUSTOM, which sits
+     * between DEBUG and TRACE in the ordering, so the threshold becomes
+     * "everything except TRACE".
      *
      * @param int $level
-     *
-     * @return AbstractLogger
+     * @return static
      */
-    public function setLogLevel(int $level): AbstractLogger
+    public function setLogLevel(int $level): static
     {
     }
 
     /**
      * Adds a message to each handler for processing
      *
+     * @throws Exception
+     * @throws NoAdaptersConfigured
      * @param int $level
      * @param string $message
-     * @param array  $context
-     *
+     * @param array $context
      * @return bool
-     * @throws Exception
-     * @throws LoggerException
      */
     protected function addMessage(int $level, string $message, array $context = []): bool
     {
@@ -209,7 +266,6 @@ abstract class AbstractLogger
      * Converts the level from string/word to an integer
      *
      * @param mixed $level
-     *
      * @return int
      */
     protected function getLevelNumber($level): int
@@ -219,7 +275,7 @@ abstract class AbstractLogger
     /**
      * Returns an array of log levels with integer to string conversion
      *
-     * @return string[]
+     * @return array
      */
     protected function getLevels(): array
     {

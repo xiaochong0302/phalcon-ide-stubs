@@ -15,6 +15,10 @@ use Phalcon\Mvc\ModelInterface;
 use Phalcon\Filter\Validation;
 use Phalcon\Filter\Validation\AbstractCombinedFieldsValidator;
 use Phalcon\Filter\Validation\Exception;
+use Phalcon\Filter\Validation\Exceptions\UniquenessConversionMustBeArray;
+use Phalcon\Filter\Validation\Exceptions\UniquenessModelRequired;
+use Phalcon\Filter\Validation\Exceptions\UniquenessOnlyForPhalconModel;
+use Phalcon\Support\Settings;
 
 /**
  * Check that a field is unique in the related table
@@ -108,6 +112,22 @@ class Uniqueness extends AbstractCombinedFieldsValidator
      * ]
      */
     public function __construct(array $options = [])
+    {
+    }
+
+    /**
+     * Returns an option in the validator's options
+     * Returns null if the option hasn't set
+     *
+     * The `attribute` option can be defined as an array when validating a
+     * combination of fields; in that case resolve it to the mapped value.
+     *
+     * @param string     $key
+     * @param mixed|null $defaultValue
+     *
+     * @return mixed
+     */
+    public function getOption(string $key, $defaultValue = null): mixed
     {
     }
 

@@ -10,6 +10,7 @@
 namespace Phalcon\Session\Adapter;
 
 use SessionHandlerInterface;
+use SessionUpdateTimestampHandlerInterface;
 
 /**
  * Phalcon\Session\Adapter\Noop
@@ -27,47 +28,8 @@ use SessionHandlerInterface;
  * $session->setAdapter(new Noop());
  * ```
  */
-class Noop implements \SessionHandlerInterface
+class Noop implements \SessionHandlerInterface, \SessionUpdateTimestampHandlerInterface
 {
-    /**
-     * The connection of some adapters
-     *
-     * @var null
-     */
-    protected $connection = null;
-
-    /**
-     * Session options
-     *
-     * @var array
-     */
-    protected $options = [];
-
-    /**
-     * Session prefix
-     *
-     * @var string
-     */
-    protected $prefix = '';
-
-    /**
-     * Time To Live
-     *
-     * @var int
-     */
-    protected $ttl = 8600;
-
-    /**
-     * Constructor
-     *
-     * @param array $options = [
-     *     'prefix' => ''
-     * ]
-     */
-    public function __construct(array $options = [])
-    {
-    }
-
     /**
      * Close
      *
@@ -80,10 +42,10 @@ class Noop implements \SessionHandlerInterface
     /**
      * Destroy
      *
-     * @param mixed $id
+     * @param string $id
      * @return bool
      */
-    public function destroy($id): bool
+    public function destroy(string $id): bool
     {
     }
 
@@ -98,44 +60,55 @@ class Noop implements \SessionHandlerInterface
     }
 
     /**
-     * Read
+     * Open
      *
-     * @param mixed $id
-     * @return string
+     * @param string $path
+     * @param string $name
+     * @return bool
      */
-    public function read($id): string
+    public function open(string $path, string $name): bool
     {
     }
 
     /**
-     * Open
+     * Read
      *
-     * @param mixed $path
-     * @param mixed $name
+     * @param string $id
+     * @return string
+     */
+    public function read(string $id): string
+    {
+    }
+
+    /**
+     * Refresh the session lifetime without changing the session data
+     *
+     * @param string $id
+     * @param string $data
      * @return bool
      */
-    public function open($path, $name): bool
+    public function updateTimestamp(string $id, string $data): bool
+    {
+    }
+
+    /**
+     * Validate the session id (used when strict mode is enabled)
+     *
+     * @param string $id
+     * @return bool
+     */
+    public function validateId(string $id): bool
     {
     }
 
     /**
      * Write
      *
-     * @param mixed $id
-     * @param mixed $data
+     * @param string $id
+     * @param string $data
      * @return bool
      */
-    public function write($id, $data): bool
-    {
-    }
-
-    /**
-     * Helper method to get the name prefixed
-     *
-     * @param mixed $name
-     * @return string
-     */
-    protected function getPrefixedName($name): string
+    public function write(string $id, string $data): bool
     {
     }
 }

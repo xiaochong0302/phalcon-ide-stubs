@@ -9,14 +9,23 @@
  */
 namespace Phalcon\DataMapper\Pdo;
 
+use Phalcon\Contracts\Events\EventsAware;
 use Phalcon\DataMapper\Pdo\Connection\ConnectionInterface;
 use Phalcon\DataMapper\Pdo\Exception\ConnectionNotFound;
+use Phalcon\Events\ManagerInterface;
+use Phalcon\Events\Traits\EventsAwareTrait;
 
 /**
  * Manages Connection instances for default, read, and write connections.
+ *
+ * The locator gives its events manager to each connection that it returns,
+ * so connections that are built on demand also fire the DataMapper events.
  */
-class ConnectionLocator implements \Phalcon\DataMapper\Pdo\ConnectionLocatorInterface
+class ConnectionLocator implements \Phalcon\DataMapper\Pdo\ConnectionLocatorInterface, \Phalcon\Contracts\Events\EventsAware
 {
+    use \Phalcon\Events\Traits\EventsAwareTrait;
+
+
     /**
      * A default Connection connection factory/instance.
      *
@@ -98,10 +107,10 @@ class ConnectionLocator implements \Phalcon\DataMapper\Pdo\ConnectionLocatorInte
      *
      * @param ConnectionInterface $callable
      *
-     * @return ConnectionLocatorInterface
+     * @return static
      * @param \Phalcon\DataMapper\Pdo\Connection\ConnectionInterface $callableObject
      */
-    public function setMaster(\Phalcon\DataMapper\Pdo\Connection\ConnectionInterface $callableObject): ConnectionLocatorInterface
+    public function setMaster(\Phalcon\DataMapper\Pdo\Connection\ConnectionInterface $callableObject): static
     {
     }
 
@@ -111,10 +120,10 @@ class ConnectionLocator implements \Phalcon\DataMapper\Pdo\ConnectionLocatorInte
      * @param string   $name
      * @param callable $callable
      *
-     * @return ConnectionLocatorInterface
+     * @return static
      * @param callable $callableObject
      */
-    public function setRead(string $name, $callableObject): ConnectionLocatorInterface
+    public function setRead(string $name, $callableObject): static
     {
     }
 
@@ -124,10 +133,10 @@ class ConnectionLocator implements \Phalcon\DataMapper\Pdo\ConnectionLocatorInte
      * @param string   $name
      * @param callable $callable
      *
-     * @return ConnectionLocatorInterface
+     * @return static
      * @param callable $callableObject
      */
-    public function setWrite(string $name, $callableObject): ConnectionLocatorInterface
+    public function setWrite(string $name, $callableObject): static
     {
     }
 
@@ -141,6 +150,19 @@ class ConnectionLocator implements \Phalcon\DataMapper\Pdo\ConnectionLocatorInte
      * @throws ConnectionNotFound
      */
     protected function getConnection(string $type, string $name = ''): ConnectionInterface
+    {
+    }
+
+    /**
+     * Gives the locator's events manager to a connection. Does nothing when
+     * the locator has no manager, or when the connection does not accept
+     * one. It is safe to call this more than once on the same connection.
+     *
+     * @param ConnectionInterface $connection
+     *
+     * @return ConnectionInterface
+     */
+    private function applyEventsManager(\Phalcon\DataMapper\Pdo\Connection\ConnectionInterface $connection): ConnectionInterface
     {
     }
 }

@@ -10,6 +10,7 @@
 namespace Phalcon\Html\Helper\Input;
 
 use Phalcon\Html\Helper\AbstractList;
+use Phalcon\Contracts\Html\Helper\Input\SelectData;
 
 /**
  * Class Select
@@ -32,6 +33,11 @@ class Select extends AbstractList
     protected $selected = '';
 
     /**
+     * @var bool
+     */
+    protected $strict = false;
+
+    /**
      * Add an element to the list
      *
      * @param string      $text
@@ -39,9 +45,9 @@ class Select extends AbstractList
      * @param array       $attributes
      * @param bool        $raw
      *
-     * @return Select
+     * @return static
      */
-    public function add(string $text, string $value = null, array $attributes = [], bool $raw = false): Select
+    public function add(string $text, ?string $value = null, array $attributes = [], bool $raw = false): static
     {
     }
 
@@ -53,9 +59,22 @@ class Select extends AbstractList
      * @param array  $attributes
      * @param bool   $raw
      *
-     * @return Select
+     * @return static
      */
-    public function addPlaceholder(string $text, $value = null, array $attributes = [], bool $raw = false): Select
+    public function addPlaceholder(string $text, ?string $value = null, array $attributes = [], bool $raw = false): static
+    {
+    }
+
+    /**
+     * Populates the select from a data provider.
+     *
+     * Flat entries: key = option value, value = label string.
+     * Optgroup entries: key = group label, value = [value => label] array.
+     *
+     * @param SelectData $data *
+     * @return static
+     */
+    public function fromData(\Phalcon\Contracts\Html\Helper\Input\SelectData $data): static
     {
     }
 
@@ -65,18 +84,45 @@ class Select extends AbstractList
      * @param string $label
      * @param array  $attributes
      *
-     * @return Select
+     * @return static
      */
-    public function optGroup(string $label = null, array $attributes = []): Select
+    public function optGroup(?string $label = null, array $attributes = []): static
+    {
+    }
+
+    /**
+     * Adds a non-selectable placeholder option as the first entry. Renders
+     * as `<option value="" disabled selected>$text</option>`, matching the
+     * common HTML idiom for "Choose..."-style prompts.
+     *
+     * @param string $text
+     *
+     * @return static
+     */
+    public function placeholder(string $text): static
     {
     }
 
     /**
      * @param string $selected
      *
-     * @return Select
+     * @return static
      */
-    public function selected(string $selected): Select
+    public function selected(string $selected): static
+    {
+    }
+
+    /**
+     * Toggles strict (`===`) comparison between an option's `value` and
+     * the previously stored `selected` value. Defaults to loose (`==`),
+     * matching the round-tripping fix in `AbstractChecked` so mixed
+     * int/string form data marks the right option as selected.
+     *
+     * @param bool $flag
+     *
+     * @return static
+     */
+    public function strict(bool $flag = true): static
     {
     }
 
@@ -113,7 +159,7 @@ class Select extends AbstractList
      *
      * @return array
      */
-    private function processValue(array $attributes, $value = null): array
+    private function processValue(array $attributes, ?string $value = null): array
     {
     }
 }

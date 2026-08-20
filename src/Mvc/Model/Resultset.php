@@ -18,10 +18,14 @@ use Phalcon\Cache\CacheInterface;
 use Phalcon\Db\Enum;
 use Phalcon\Messages\MessageInterface;
 use Phalcon\Mvc\Model;
+use Phalcon\Mvc\Model\Exceptions\CursorIsImmutable;
+use Phalcon\Mvc\Model\Exceptions\IndexNotInCursor;
+use Phalcon\Mvc\Model\Exceptions\InvalidResultsetCacheService;
+use Phalcon\Mvc\Model\Exceptions\InvalidReturnedRecord;
 use Phalcon\Mvc\ModelInterface;
 use Phalcon\Storage\Serializer\SerializerInterface;
+use Phalcon\Support\Settings;
 use SeekableIterator;
-use Serializable;
 
 /**
  * Phalcon\Mvc\Model\Resultset
@@ -34,33 +38,33 @@ use Serializable;
  * ```php
  *
  * // Using a standard foreach
- * $robots = Robots::find(
+ * $invoices = Invoices::find(
  *     [
- *         "type = 'virtual'",
- *         "order" => "name",
+ *         "inv_status_flag = 1",
+ *         "order" => "inv_title",
  *     ]
  * );
  *
- * foreach ($robots as robot) {
- *     echo robot->name, "\n";
+ * foreach ($invoices as invoice) {
+ *     echo invoice->inv_title, "\n";
  * }
  *
  * // Using a while
- * $robots = Robots::find(
+ * $invoices = Invoices::find(
  *     [
- *         "type = 'virtual'",
- *         "order" => "name",
+ *         "inv_status_flag = 1",
+ *         "order" => "inv_title",
  *     ]
  * );
  *
- * $robots->rewind();
+ * $invoices->rewind();
  *
- * while ($robots->valid()) {
- *     $robot = $robots->current();
+ * while ($invoices->valid()) {
+ *     $invoice = $invoices->current();
  *
- *     echo $robot->name, "\n";
+ *     echo $invoice->inv_title, "\n";
  *
- *     $robots->next();
+ *     $invoices->next();
  * }
  * ```
  *
@@ -69,17 +73,32 @@ use Serializable;
  * @implements Iterator<TKey, TValue>
  * @implements ArrayAccess<TKey, TValue>
  */
-abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iterator, \SeekableIterator, \Countable, \ArrayAccess, \Serializable, \JsonSerializable
+abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iterator, \SeekableIterator, \Countable, \ArrayAccess, \JsonSerializable
 {
-    const HYDRATE_ARRAYS = 1;
+    /**
+     * @var int
+     */
+    const int HYDRATE_ARRAYS = 1;
 
-    const HYDRATE_OBJECTS = 2;
+    /**
+     * @var int
+     */
+    const int HYDRATE_OBJECTS = 2;
 
-    const HYDRATE_RECORDS = 0;
+    /**
+     * @var int
+     */
+    const int HYDRATE_RECORDS = 0;
 
-    const TYPE_RESULT_FULL = 0;
+    /**
+     * @var int
+     */
+    const int TYPE_RESULT_FULL = 0;
 
-    const TYPE_RESULT_PARTIAL = 1;
+    /**
+     * @var int
+     */
+    const int TYPE_RESULT_PARTIAL = 1;
 
     /**
      * @var mixed|null
@@ -92,9 +111,13 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
     protected $cache = null;
 
     /**
-     * @var int
+     * Number of rows, or null while it has not been worked out yet. Resolved
+     * lazily by count() - asking the driver up front costs SQLite an extra
+     * statement on every single result-set.
+     *
+     * @var int|null
      */
-    protected $count = 0;
+    protected $count = null;
 
     /**
      * @var array
@@ -155,10 +178,10 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
     /**
      * Deletes every record in the resultset
      *
-     * @param \Closure $conditionCallback
+     * @param \Closure|null $conditionCallback
      * @return bool
      */
-    public function delete(\Closure $conditionCallback = null): bool
+    public function delete(?\Closure $conditionCallback = null): bool
     {
     }
 
@@ -166,10 +189,10 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
      * Filters a resultset returning only those the developer requires
      *
      * ```php
-     * $filtered = $robots->filter(
-     *     function ($robot) {
-     *         if ($robot->id < 3) {
-     *             return $robot;
+     * $filtered = $invoices->filter(
+     *     function ($invoice) {
+     *         if ($invoice->inv_id < 3) {
+     *             return $invoice;
      *         }
      *     }
      * );
@@ -195,21 +218,21 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
      * Get first row in the resultset
      *
      * ```php
-     * $model = new Robots();
+     * $model = new Invoices();
      * $manager = $model->getModelsManager();
      *
-     * // \Robots
-     * $manager->createQuery('SELECT FROM Robots')
+     * // \Invoices
+     * $manager->createQuery('SELECT FROM Invoices')
      *         ->execute()
      *         ->getFirst();
      *
      * // \Phalcon\Mvc\Model\Row
-     * $manager->createQuery('SELECT r.id FROM Robots AS r')
+     * $manager->createQuery('SELECT r.inv_id FROM Invoices AS r')
      *         ->execute()
      *         ->getFirst();
      *
      * // NULL
-     * $manager->createQuery('SELECT r.id FROM Robots AS r WHERE r.name = "NON-EXISTENT"')
+     * $manager->createQuery('SELECT r.inv_id FROM Invoices AS r WHERE r.inv_title = "NON-EXISTENT"')
      *         ->execute()
      *         ->getFirst();
      * ```
@@ -270,9 +293,9 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
      * Calls jsonSerialize on each object if present
      *
      * ```php
-     * $robots = Robots::find();
+     * $invoices = Invoices::find();
      *
-     * echo json_encode($robots);
+     * echo json_encode($invoices);
      * ```
      *
      * @return array
@@ -291,21 +314,26 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
     }
 
     /**
+     * Fetches every remaining row of the underlying cursor into memory,
+     * turning the resultset into TYPE_RESULT_FULL.
+     *
+     * Free when called before the cursor has been advanced: the statement has
+     * already been executed by Model\Query::executeSelect() and only the row
+     * the constructor consumed is missing from the cursor, so no re-execution
+     * takes place. Idempotent.
+     *
+     * @return void
+     */
+    public function materialize(): void
+    {
+    }
+
+    /**
      * Moves cursor to next row in the resultset
      *
      * @return void
      */
     public function next(): void
-    {
-    }
-
-    /**
-     * Gets row in a specific position of the resultset
-     *
-     * @param mixed $index
-     * @return mixed
-     */
-    public function offsetGet($index): mixed
     {
     }
 
@@ -316,6 +344,16 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
      * @return bool
      */
     public function offsetExists($index): bool
+    {
+    }
+
+    /**
+     * Gets row in a specific position of the resultset
+     *
+     * @param mixed $index
+     * @return mixed
+     */
+    public function offsetGet($index): mixed
     {
     }
 
@@ -384,19 +422,37 @@ abstract class Resultset implements \Phalcon\Mvc\Model\ResultsetInterface, \Iter
      * Updates every record in the resultset
      *
      * @param array $data
-     * @param \Closure $conditionCallback
+     * @param \Closure|null $conditionCallback
      * @return bool
      */
-    public function update($data, \Closure $conditionCallback = null): bool
+    public function update($data, ?\Closure $conditionCallback = null): bool
     {
     }
 
     /**
      * Check whether internal resource has rows to fetch
      *
+     * Driven by the row the cursor is parked on rather than by the count, so
+     * that a plain traversal never has to ask the driver how many rows there
+     * are - on SQLite that answer costs a second statement.
+     *
      * @return bool
      */
     public function valid(): bool
+    {
+    }
+
+    /**
+     * @return bool
+     */
+    public function refresh(): bool
+    {
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getResult(): mixed
     {
     }
 }

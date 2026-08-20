@@ -11,29 +11,24 @@ namespace Phalcon\Logger\Formatter;
 
 use DateTimeImmutable;
 use Phalcon\Logger\Item;
-use Phalcon\Support\Helper\Str\AbstractStr;
+use Phalcon\Traits\Support\Helper\Str\InterpolateTrait;
 
 /**
  * Class AbstractFormatter
  */
-abstract class AbstractFormatter extends AbstractStr implements \Phalcon\Logger\Formatter\FormatterInterface
+abstract class AbstractFormatter implements \Phalcon\Logger\Formatter\FormatterInterface
 {
+    use \Phalcon\Traits\Support\Helper\Str\InterpolateTrait;
+
+
     /**
      * Default date format
-     *
-     * @var string
      */
-    protected $dateFormat = 'c';
+    protected string $dateFormat = 'c';
 
-    /**
-     * @var string
-     */
-    protected $interpolatorLeft = '%';
+    protected string $interpolatorLeft = '%';
 
-    /**
-     * @var string
-     */
-    protected $interpolatorRight = '%';
+    protected string $interpolatorRight = '%';
 
     /**
      * @return string
@@ -62,6 +57,8 @@ abstract class AbstractFormatter extends AbstractStr implements \Phalcon\Logger\
     }
 
     /**
+     * Returns the interpolated message, replacing context placeholders.
+     *
      * @param Item   $item
      * @param string $message
      *

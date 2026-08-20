@@ -9,46 +9,47 @@
  */
 namespace Phalcon\Translate\Adapter;
 
-use Phalcon\Support\Helper\Arr\Get;
+use ArrayAccess;
+use Phalcon\Contracts\Translate\TranslateTypes;
 use Phalcon\Translate\Exception;
+use Phalcon\Translate\Exceptions\ImmutableObject;
+use Phalcon\Translate\Exceptions\KeyNotFound;
+use Phalcon\Translate\Interpolator\InterpolatorInterface;
 use Phalcon\Translate\InterpolatorFactory;
 
 /**
- * Class AbstractAdapter
+ * @phpstan-import-type translate_adapter_options from TranslateTypes
+ * @phpstan-import-type translate_placeholders from TranslateTypes
  *
- * @package Phalcon\Translate\Adapter
- *
- * @property string              $defaultInterpolator
- * @property InterpolatorFactory $interpolatorFactory
+ * @implements ArrayAccess<string, string>
  */
-abstract class AbstractAdapter implements \Phalcon\Translate\Adapter\AdapterInterface
+abstract class AbstractAdapter implements \Phalcon\Translate\Adapter\AdapterInterface, \ArrayAccess
 {
-    /**
-     * @var string
-     */
-    protected $defaultInterpolator = '';
+    protected string $defaultInterpolator = '';
 
-    /**
-     * @var InterpolatorFactory
-     */
-    protected $interpolatorFactory;
+    protected ?\Phalcon\Translate\Interpolator\InterpolatorInterface $interpolator = null;
+
+    protected \Phalcon\Translate\InterpolatorFactory $interpolatorFactory;
+
+    protected bool $triggerError = false;
 
     /**
      * AbstractAdapter constructor.
      *
-     * @param InterpolatorFactory $interpolator
-     * @param array               $options
+     * @phpstan-param translate_adapter_options $options
+     * @param \Phalcon\Translate\InterpolatorFactory $interpolatorFactory
+     * @param array $options
      */
-    public function __construct(\Phalcon\Translate\InterpolatorFactory $interpolator, array $options = [])
+    public function __construct(\Phalcon\Translate\InterpolatorFactory $interpolatorFactory, array $options = [])
     {
     }
 
     /**
      * Returns the translation string of the given key (alias of method 't')
      *
+     * @phpstan-param translate_placeholders $placeholders
      * @param string $translateKey
-     * @param array  $placeholders
-     *
+     * @param array $placeholders
      * @return string
      */
     public function _(string $translateKey, array $placeholders = []): string
@@ -56,34 +57,43 @@ abstract class AbstractAdapter implements \Phalcon\Translate\Adapter\AdapterInte
     }
 
     /**
+     * Whenever a key is not found this method will be called
+     *
+     * @throws KeyNotFound
+     * @param string $index
+     * @return string
+     */
+    public function notFound(string $index): string
+    {
+    }
+
+    /**
      * Check whether a translation key exists
      *
-     * @param mixed $translateKey
-     *
+     * @param mixed $offset
      * @return bool
      */
-    public function offsetExists($translateKey): bool
+    public function offsetExists($offset): bool
     {
     }
 
     /**
      * Returns the translation related to the given key
      *
-     * @param mixed $translateKey
+     * @param string $offset
      *
-     * @return mixed
+     * @return string
      */
-    public function offsetGet($translateKey): mixed
+    public function offsetGet($offset): string
     {
     }
 
     /**
      * Sets a translation value
      *
+     * @throws ImmutableObject
      * @param mixed $offset
      * @param mixed $value
-     *
-     * @throws Exception
      * @return void
      */
     public function offsetSet($offset, $value): void
@@ -93,9 +103,8 @@ abstract class AbstractAdapter implements \Phalcon\Translate\Adapter\AdapterInte
     /**
      * Unsets a translation from the dictionary
      *
+     * @throws ImmutableObject
      * @param mixed $offset
-     *
-     * @throws Exception
      * @return void
      */
     public function offsetUnset($offset): void
@@ -105,9 +114,9 @@ abstract class AbstractAdapter implements \Phalcon\Translate\Adapter\AdapterInte
     /**
      * Returns the translation string of the given key
      *
+     * @phpstan-param translate_placeholders $placeholders
      * @param string $translateKey
-     * @param array  $placeholders
-     *
+     * @param array $placeholders
      * @return string
      */
     public function t(string $translateKey, array $placeholders = []): string
@@ -117,9 +126,11 @@ abstract class AbstractAdapter implements \Phalcon\Translate\Adapter\AdapterInte
     /**
      * Replaces placeholders by the values passed
      *
-     * @param string $translation
-     * @param array  $placeholders
+     * @phpstan-param translate_placeholders $placeholders
      *
+     * @throws Exception
+     * @param string $translation
+     * @param array $placeholders
      * @return string
      */
     protected function replacePlaceholders(string $translation, array $placeholders = []): string

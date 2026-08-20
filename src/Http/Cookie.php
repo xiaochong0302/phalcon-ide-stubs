@@ -9,91 +9,70 @@
  */
 namespace Phalcon\Http;
 
-use Phalcon\Di\DiInterface;
+use Phalcon\Contracts\Http\HttpTypes;
 use Phalcon\Di\AbstractInjectionAware;
+use Phalcon\Di\DiInterface;
 use Phalcon\Encryption\Crypt\CryptInterface;
-use Phalcon\Encryption\Crypt\Mismatch;
 use Phalcon\Filter\FilterInterface;
-use Phalcon\Http\Response\Exception;
 use Phalcon\Http\Cookie\CookieInterface;
 use Phalcon\Http\Cookie\Exception as CookieException;
+use Phalcon\Http\Cookie\Exceptions\CookieKeyTooShort;
+use Phalcon\Http\Cookie\Exceptions\CryptInterfaceRequired;
+use Phalcon\Http\Cookie\Exceptions\CryptServiceUnavailable;
+use Phalcon\Http\Cookie\Exceptions\FilterServiceUnavailable;
+use Phalcon\Http\Response\Exception;
+use Phalcon\Http\Traits\EncryptionAwareTrait;
 use Phalcon\Session\ManagerInterface as SessionManagerInterface;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
+use Stringable;
 
 /**
  * Provide OO wrappers to manage a HTTP cookie.
+ *
+ * @phpstan-import-type http_cookie_definition from HttpTypes
+ * @phpstan-import-type http_cookie_options from HttpTypes
+ * @phpstan-import-type http_setcookie_options from HttpTypes
  */
-class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\CookieInterface
+class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\CookieInterface, \Stringable
 {
-    /**
-     * @var string
-     */
-    protected $domain;
+    use \Phalcon\Http\Traits\EncryptionAwareTrait;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
 
-    /**
-     * @var int
-     */
-    protected $expire;
 
-    /**
-     * @var FilterInterface|null
-     */
-    protected $filter = null;
+    protected string $domain = '';
 
-    /**
-     * @var bool
-     */
-    protected $httpOnly;
+    protected int $expire = 0;
 
-    /**
-     * @var string
-     */
-    protected $name;
+    protected ?\Phalcon\Filter\FilterInterface $filter = null;
 
-    /**
-     * @var array
-     */
-    protected $options = [];
+    protected bool $httpOnly = false;
 
-    /**
-     * @var string
-     */
-    protected $path;
+    protected string $name;
 
-    /**
-     * @var bool
-     */
-    protected $read = false;
+    protected array $options = [];
 
-    /**
-     * @var bool
-     */
-    protected $restored = false;
+    protected string $path = '/';
 
-    /**
-     * @var bool
-     */
-    protected $secure = true;
+    protected bool $isRead = false;
+
+    protected bool $isRestored = false;
+
+    protected bool $secure = false;
 
     /**
      * The cookie's sign key.
-     *
-     * @var string|null
      */
-    protected $signKey = null;
+    protected ?string $signKey = null;
 
     /**
-     * @var bool
-     */
-    protected $useEncryption = false;
-
-    /**
-     * @var mixed|null
+     * @var mixed
      */
     protected $value = null;
 
     /**
      * Phalcon\Http\Cookie constructor.
      *
+     * @phpstan-param http_cookie_options $options
      * @param string $name
      * @param mixed $value
      * @param int $expire
@@ -117,9 +96,11 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     }
 
     /**
-     * Deletes the cookie by setting an expire time in the past
+     * Deletes the cookie by setting an expiration time in the past
+     *
+     * @return void
      */
-    public function delete()
+    public function delete(): void
     {
     }
 
@@ -135,9 +116,9 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     /**
      * Returns the current expiration time
      *
-     * @return string
+     * @return int
      */
-    public function getExpiration(): string
+    public function getExpiration(): int
     {
     }
 
@@ -162,6 +143,7 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     /**
      * Returns the current cookie's options
      *
+     * @phpstan-return http_cookie_options
      * @return array
      */
     public function getOptions(): array
@@ -190,20 +172,12 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     /**
      * Returns the cookie's value.
      *
+     * @todo filters needs to be array/string
      * @param mixed $filters
      * @param mixed $defaultValue
      * @return mixed
      */
     public function getValue($filters = null, $defaultValue = null): mixed
-    {
-    }
-
-    /**
-     * Check if the cookie is using implicit encryption
-     *
-     * @return bool
-     */
-    public function isUsingEncryption(): bool
     {
     }
 
@@ -264,6 +238,7 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     /**
      * Sets the cookie's options
      *
+     * @phpstan-param http_cookie_options $options
      * @param array $options
      * @return CookieInterface
      */
@@ -282,7 +257,8 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     }
 
     /**
-     * Sets if the cookie must only be sent when the connection is secure (HTTPS)
+     * Sets if the cookie must only be sent when the connection is secure
+     * (HTTPS)
      *
      * @param bool $secure
      * @return CookieInterface
@@ -299,19 +275,18 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
      *
      * Use NULL to disable cookie signing.
      *
-     * @see \Phalcon\Security\Random
-     * @throws \Phalcon\Http\Cookie\Exception
-     * @param string $signKey
+     * @see \Phalcon\Encryption\Security\Random
+     * @param string|null $signKey
      * @return CookieInterface
      */
-    public function setSignKey(string $signKey = null): CookieInterface
+    public function setSignKey(?string $signKey = null): CookieInterface
     {
     }
 
     /**
      * Sets the cookie's value
      *
-     * @param string $value
+     * @param mixed $value
      * @return CookieInterface
      */
     public function setValue($value): CookieInterface
@@ -340,13 +315,39 @@ class Cookie extends AbstractInjectionAware implements \Phalcon\Http\Cookie\Cook
     }
 
     /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
+     * Check if the cookie is restored and restore it if not
+     *
+     * @return void
      */
-    private function getArrVal(array $collection, $index, $defaultValue = null): mixed
+    private function checkRestored(): void
+    {
+    }
+
+    /**
+     * @phpstan-return http_setcookie_options
+     * @param int $expiresDefault
+     * @return array
+     */
+    private function getCookieOptions(int $expiresDefault): array
+    {
+    }
+
+    /**
+     * The session key under which this cookie's definition is stored
+     *
+     * @return string
+     */
+    private function getSessionKey(): string
+    {
+    }
+
+    /**
+     * Returns the session manager from the container when the service is
+     * available and the session has been started; `null` otherwise
+     *
+     * @return SessionManagerInterface|null
+     */
+    private function getStartedSession(): SessionManagerInterface|null
     {
     }
 }

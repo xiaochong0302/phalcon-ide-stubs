@@ -24,9 +24,9 @@ class Select extends \Phalcon\Forms\Element\AbstractElement
     /**
      * Constructor
      *
-     * @param object|array $options
-     * @param array $attributes
      * @param string $name
+     * @param object|array|null $options
+     * @param array $attributes
      */
     public function __construct(string $name, $options = null, array $attributes = [])
     {

@@ -16,19 +16,27 @@ use Phalcon\Di\DiInterface;
 use Phalcon\Di\InjectionAwareInterface;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface;
+use Phalcon\Events\Traits\EventsAwareTrait;
 use Phalcon\Http\Message\ResponseStatusCodeInterface;
 use Phalcon\Http\Response\CookiesInterface;
 use Phalcon\Http\Response\Exception;
+use Phalcon\Http\Response\Exceptions\NonStandardStatusCodeRequiresMessage;
+use Phalcon\Http\Response\Exceptions\ResponseAlreadySent;
+use Phalcon\Http\Response\Exceptions\UrlServiceUnavailable;
+use Phalcon\Http\Response\Headers;
 use Phalcon\Http\Response\HeadersInterface;
+use Phalcon\Http\Traits\StatusPhrasesTrait;
 use Phalcon\Mvc\Url\UrlInterface;
 use Phalcon\Mvc\ViewInterface;
-use Phalcon\Http\Response\Headers;
+use Phalcon\Support\Helper\File\Basename;
 use Phalcon\Support\Helper\Json\Encode;
+use Phalcon\Traits\Php\InfoTrait;
+use Phalcon\Traits\Php\UrlTrait;
 
 /**
  * Part of the HTTP cycle is return responses to the clients.
- * Phalcon\HTTP\Response is the Phalcon component responsible to achieve this task.
- * HTTP responses are usually composed by headers and body.
+ * Phalcon\HTTP\Response is the Phalcon component responsible to achieve this
+ * task. HTTP responses are usually composed by headers and body.
  *
  * ```php
  * $response = new \Phalcon\Http\Response();
@@ -41,59 +49,35 @@ use Phalcon\Support\Helper\Json\Encode;
  */
 class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\InjectionAwareInterface, \Phalcon\Events\EventsAwareInterface, \Phalcon\Http\Message\ResponseStatusCodeInterface
 {
-    /**
-     * @var DiInterface|null
-     */
-    protected $container = null;
+    use \Phalcon\Events\Traits\EventsAwareTrait;
+    use \Phalcon\Traits\Php\InfoTrait;
+    use \Phalcon\Http\Traits\StatusPhrasesTrait;
+    use \Phalcon\Traits\Php\UrlTrait;
+
+
+    protected ?\Phalcon\Di\DiInterface $container = null;
+
+    protected ?string $content = null;
+
+    protected ?\Phalcon\Http\Response\CookiesInterface $cookies = null;
+
+    protected \Phalcon\Support\Helper\Json\Encode $encode;
+
+    protected ?string $file = null;
+
+    protected \Phalcon\Http\Response\Headers $headers;
+
+    protected bool $sent = false;
 
     /**
-     * @var string|null
-     */
-    protected $content = null;
-
-    /**
-     * @var CookiesInterface|null
-     */
-    protected $cookies = null;
-
-    /**
-     * @var ManagerInterface|null
-     */
-    protected $eventsManager = null;
-
-    /**
-     * @var string|null
-     */
-    protected $file = null;
-
-    /**
-     * @var Headers
-     */
-    protected $headers;
-
-    /**
-     * @var bool
-     */
-    protected $sent = false;
-
-    /**
-     * @var array
-     */
-    protected $statusCodes = [];
-
-    /**
-     * @var Encode
-     */
-    private $encode;
-
-    /**
-     * Phalcon\Http\Response constructor
+     * Constructor
      *
-     * @param string $content
+     * @throws Exception
+     * @param string|null $content
      * @param mixed $code
      * @param mixed $status
      */
-    public function __construct(string $content = null, $code = null, $status = null)
+    public function __construct(?string $content = null, $code = null, $status = null)
     {
     }
 
@@ -131,15 +115,6 @@ class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\Injection
      * @return DiInterface
      */
     public function getDI(): DiInterface
-    {
-    }
-
-    /**
-     * Returns the internal event manager
-     *
-     * @return ManagerInterface|null
-     */
-    public function getEventsManager(): ManagerInterface|null
     {
     }
 
@@ -207,7 +182,7 @@ class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\Injection
      * ```php
      * // Using a string redirect (internal/external)
      * $response->redirect("posts/index");
-     * $response->redirect("http://en.wikipedia.org", true);
+     * $response->redirect("https://en.wikipedia.org", true);
      * $response->redirect("http://www.example.com/new-location", true, 301);
      *
      * // Making a redirection based on a named route
@@ -330,10 +305,10 @@ class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\Injection
      * ```
      *
      * @param string $contentType
-     * @param mixed $charset
+     * @param string|null $charset
      * @return ResponseInterface
      */
-    public function setContentType(string $contentType, $charset = null): ResponseInterface
+    public function setContentType(string $contentType, ?string $charset = null): ResponseInterface
     {
     }
 
@@ -392,24 +367,14 @@ class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\Injection
     }
 
     /**
-     * Sets the events manager
-     *
-     * @param \Phalcon\Events\ManagerInterface $eventsManager
-     * @return void
-     */
-    public function setEventsManager(\Phalcon\Events\ManagerInterface $eventsManager): void
-    {
-    }
-
-    /**
      * Sets an attached file to be sent at the end of the request
      *
      * @param string $filePath
      * @param mixed $attachmentName
-     * @param mixed $attachment
+     * @param bool $attachment
      * @return ResponseInterface
      */
-    public function setFileToSend(string $filePath, $attachmentName = null, $attachment = true): ResponseInterface
+    public function setFileToSend(string $filePath, $attachmentName = null, bool $attachment = true): ResponseInterface
     {
     }
 
@@ -485,21 +450,6 @@ class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\Injection
     }
 
     /**
-     * Sets the HTTP response code
-     *
-     * ```php
-     * $response->setStatusCode(404, "Not Found");
-     * ```
-     *
-     * @param int $code
-     * @param string $message
-     * @return ResponseInterface
-     */
-    public function setStatusCode(int $code, string $message = null): ResponseInterface
-    {
-    }
-
-    /**
      * Send a raw header to the response
      *
      * ```php
@@ -514,12 +464,17 @@ class Response implements \Phalcon\Http\ResponseInterface, \Phalcon\Di\Injection
     }
 
     /**
-     * @todo Remove this when we get traits
-     * @param string $uri
-     * @param mixed $suffix
-     * @return string
+     * Sets the HTTP response code
+     *
+     * ```php
+     * $response->setStatusCode(404, "Not Found");
+     * ```
+     *
+     * @param int $code
+     * @param string|null $message
+     * @return ResponseInterface
      */
-    private function getBasename(string $uri, $suffix = null): string
+    public function setStatusCode(int $code, ?string $message = null): ResponseInterface
     {
     }
 }

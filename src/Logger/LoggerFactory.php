@@ -10,20 +10,25 @@
 namespace Phalcon\Logger;
 
 use DateTimeZone;
+use Exception as BaseException;
 use Phalcon\Config\ConfigInterface;
 use Phalcon\Factory\AbstractConfigFactory;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
+use Throwable;
 
 /**
  * Factory creating logger objects
  */
 class LoggerFactory extends AbstractConfigFactory
 {
-    /**
-     * @var AdapterFactory
-     */
-    private $adapterFactory;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
+    private AdapterFactory $adapterFactory;
 
     /**
+     * Constructor
+     *
      * @param AdapterFactory $factory
      */
     public function __construct(AdapterFactory $factory)
@@ -56,29 +61,17 @@ class LoggerFactory extends AbstractConfigFactory
     /**
      * Returns a Logger object
      *
-     * @param string            $name
-     * @param array             $adapters
-     * @param DateTimeZone|null $timezone
-     *
+     * @param string $name
+     * @param array $adapters
+     * @param \DateTimeZone|null $timezone
      * @return Logger
      */
-    public function newInstance(string $name, array $adapters = [], \DateTimeZone $timezone = null): Logger
+    public function newInstance(string $name, array $adapters = [], ?\DateTimeZone $timezone = null): Logger
     {
     }
 
     /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    protected function getArrVal(array $collection, $index, $defaultValue = null): mixed
-    {
-    }
-
-    /**
-     * @return string
+     * @return class-string<Throwable>
      */
     protected function getExceptionClass(): string
     {

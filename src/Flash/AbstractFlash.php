@@ -12,6 +12,8 @@ namespace Phalcon\Flash;
 use Phalcon\Di\Di;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\AbstractInjectionAware;
+use Phalcon\Flash\Exceptions\EscaperServiceUnavailable;
+use Phalcon\Flash\Exceptions\FlashMessageNotStringOrArray;
 use Phalcon\Html\Escaper\EscaperInterface;
 use Phalcon\Session\ManagerInterface as SessionInterface;
 use Phalcon\Support\Helper\Str\Interpolate;
@@ -87,7 +89,7 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * @param EscaperInterface|null $escaper
      * @param SessionInterface|null $session
      */
-    public function __construct(\Phalcon\Html\Escaper\EscaperInterface $escaper = null, \Phalcon\Session\ManagerInterface $session = null)
+    public function __construct(?\Phalcon\Html\Escaper\EscaperInterface $escaper = null, ?\Phalcon\Session\ManagerInterface $session = null)
     {
     }
 
@@ -161,6 +163,18 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
     }
 
     /**
+     * Outputs a message. Delivery semantics differ per implementation:
+     * `Direct` renders and emits immediately, `Session` stores the raw
+     * message for output on a later request.
+     *
+     * @param string $type
+     * @param mixed  $message
+     *
+     * @return string|null
+     */
+    abstract public function message(string $type, $message): string|null;
+
+    /**
      * Shows a HTML notice/information message
      *
      * ```php
@@ -179,9 +193,9 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Set the autoescape mode in generated HTML
      *
      * @param bool $autoescape
-     * @return AbstractFlash
+     * @return static
      */
-    public function setAutoescape(bool $autoescape): AbstractFlash
+    public function setAutoescape(bool $autoescape): static
     {
     }
 
@@ -189,9 +203,9 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Set if the output must be implicitly formatted with HTML
      *
      * @param bool $automaticHtml
-     * @return AbstractFlash
+     * @return static
      */
-    public function setAutomaticHtml(bool $automaticHtml): AbstractFlash
+    public function setAutomaticHtml(bool $automaticHtml): static
     {
     }
 
@@ -199,9 +213,9 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Set an array with CSS classes to format the messages
      *
      * @param array $cssClasses
-     * @return AbstractFlash
+     * @return static
      */
-    public function setCssClasses(array $cssClasses): AbstractFlash
+    public function setCssClasses(array $cssClasses): static
     {
     }
 
@@ -209,9 +223,9 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Set an array with CSS classes to format the icon messages
      *
      * @param array $cssIconClasses
-     * @return AbstractFlash
+     * @return static
      */
-    public function setCssIconClasses(array $cssIconClasses): AbstractFlash
+    public function setCssIconClasses(array $cssIconClasses): static
     {
     }
 
@@ -219,9 +233,9 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Set a custom template for showing the messages
      *
      * @param string $customTemplate
-     * @return AbstractFlash
+     * @return static
      */
-    public function setCustomTemplate(string $customTemplate): AbstractFlash
+    public function setCustomTemplate(string $customTemplate): static
     {
     }
 
@@ -229,9 +243,9 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Sets the Escaper Service
      *
      * @param EscaperInterface $escaperService
-     * @return AbstractFlash
+     * @return static
      */
-    public function setEscaperService(\Phalcon\Html\Escaper\EscaperInterface $escaperService): AbstractFlash
+    public function setEscaperService(\Phalcon\Html\Escaper\EscaperInterface $escaperService): static
     {
     }
 
@@ -239,10 +253,14 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * Set whether the output must be implicitly flushed to the output or
      * returned as string
      *
+     * Note: `output()` is an echo API and requires implicit flush to remain
+     * enabled (the default). With implicit flush disabled, `message()` returns
+     * the rendered string while `output()` does not emit it.
+     *
      * @param bool $implicitFlush
-     * @return AbstractFlash
+     * @return static
      */
-    public function setImplicitFlush(bool $implicitFlush): AbstractFlash
+    public function setImplicitFlush(bool $implicitFlush): static
     {
     }
 
@@ -301,9 +319,8 @@ abstract class AbstractFlash extends AbstractInjectionAware implements \Phalcon\
      * @param string $cssIconClasses
      *
      * @return string
-     * @param string $cssClassses
      */
-    private function getTemplate(string $cssClassses, string $cssIconClasses): string
+    private function getTemplate(string $cssClasses, string $cssIconClasses): string
     {
     }
 

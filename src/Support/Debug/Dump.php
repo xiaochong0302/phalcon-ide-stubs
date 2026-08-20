@@ -9,10 +9,18 @@
  */
 namespace Phalcon\Support\Debug;
 
-use Phalcon\Di\Di;
+use InvalidArgumentException;
+use JsonException;
+use Phalcon\Container\Container;
+use Phalcon\Contracts\Support\Debug\TemplateAware;
+use Phalcon\Contracts\Support\SupportTypes;
+use Phalcon\Di\DiInterface;
+use Phalcon\Support\Debug\Traits\TemplateAwareTrait;
 use Phalcon\Support\Helper\Json\Encode;
+use Phalcon\Traits\Support\Helper\Str\InterpolateTrait;
 use Reflection;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionProperty;
 use stdClass;
 
@@ -32,32 +40,33 @@ use stdClass;
  *
  * echo (new \Phalcon\Debug\Dump())->variables($foo, $bar, $baz);
  * ```
+ *
+ * @phpstan-import-type support_debug_styles from SupportTypes
  */
-class Dump
+class Dump implements \Phalcon\Contracts\Support\Debug\TemplateAware
 {
-    /**
-     * @var bool
-     */
-    protected $detailed = false;
+    use \Phalcon\Traits\Support\Helper\Str\InterpolateTrait;
+    use \Phalcon\Support\Debug\Traits\TemplateAwareTrait;
+
+
+    protected bool $detailed = false;
 
     /**
-     * @var array
+     * @var array<array-key, class-string>
      */
-    protected $methods = [];
+    protected array $methods = [];
 
     /**
-     * @var array
+     * @phpstan-var support_debug_styles
      */
-    protected $styles = [];
+    protected array $styles = [];
+
+    private \Phalcon\Support\Helper\Json\Encode $encode;
 
     /**
-     * @var Encode
-     */
-    private $encode;
-
-    /**
-     * Phalcon\Debug\Dump constructor
+     * Dump constructor.
      *
+     * @phpstan-param support_debug_styles $styles
      * @param array $styles
      * @param bool $detailed
      */
@@ -82,27 +91,30 @@ class Dump
     }
 
     /**
-     * @param bool $detailed
-     * @return void
+     * Alias of variable() method
+     *
+     * @throws ReflectionException
+     * @param mixed $variable
+     * @param string|null $name
+     * @return string
      */
-    public function setDetailed(bool $detailed): void
+    public function one($variable, ?string $name = null): string
     {
     }
 
     /**
-     * Alias of variable() method
-     *
-     * @param mixed $variable
-     * @param string $name
-     * @return string
+     * @param bool $flag
+     * @return void
      */
-    public function one($variable, string $name = null): string
+    public function setDetailed(bool $flag): void
     {
     }
 
     /**
      * Set styles for vars type
      *
+     * @phpstan-param  support_debug_styles $styles
+     * @phpstan-return support_debug_styles
      * @param array $styles
      * @return array
      */
@@ -126,6 +138,8 @@ class Dump
      * echo (new \Phalcon\Debug\Dump())->toJson($foo);
      * ```
      *
+     * @throws InvalidArgumentException
+     * @throws JsonException
      * @param mixed $variable
      * @return string
      */
@@ -140,11 +154,12 @@ class Dump
      * echo (new \Phalcon\Debug\Dump())->variable($foo, "foo");
      * ```
      *
+     * @throws ReflectionException
      * @param mixed $variable
-     * @param string $name
+     * @param string|null $name
      * @return string
      */
-    public function variable($variable, string $name = null): string
+    public function variable($variable, ?string $name = null): string
     {
     }
 
@@ -160,9 +175,21 @@ class Dump
      * echo (new \Phalcon\Debug\Dump())->variables($foo, $bar, $baz);
      * ```
      *
+     * @throws ReflectionException
      * @return string
      */
     public function variables(): string
+    {
+    }
+
+    /**
+     * Returns the embedded default template for the given name.
+     *
+     * @param string $name
+     *
+     * @return string
+     */
+    protected function defaultTemplate(string $name): string
     {
     }
 
@@ -179,12 +206,22 @@ class Dump
     /**
      * Prepare an HTML string of information about a single variable.
      *
+     * @throws ReflectionException
      * @param mixed $variable
-     * @param string $name
+     * @param string|null $name
      * @param int $tab
      * @return string
      */
-    protected function output($variable, string $name = null, int $tab = 1): string
+    protected function output($variable, ?string $name = null, int $tab = 1): string
+    {
+    }
+
+    /**
+     * @param string $text
+     *
+     * @return string
+     */
+    private function getOutputBold(string $text): string
     {
     }
 }

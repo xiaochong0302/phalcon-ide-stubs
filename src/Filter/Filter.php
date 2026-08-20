@@ -9,80 +9,177 @@
  */
 namespace Phalcon\Filter;
 
+use Phalcon\Filter\Exceptions\FilterNotRegistered;
+use Phalcon\Filter\Sanitize\AbsInt;
+use Phalcon\Filter\Sanitize\Alnum;
+use Phalcon\Filter\Sanitize\Alpha;
+use Phalcon\Filter\Sanitize\BoolVal;
+use Phalcon\Filter\Sanitize\Email;
+use Phalcon\Filter\Sanitize\FloatVal;
+use Phalcon\Filter\Sanitize\IntVal;
+use Phalcon\Filter\Sanitize\Ip;
+use Phalcon\Filter\Sanitize\Lower;
+use Phalcon\Filter\Sanitize\LowerFirst;
+use Phalcon\Filter\Sanitize\Regex;
+use Phalcon\Filter\Sanitize\Remove;
+use Phalcon\Filter\Sanitize\Replace;
+use Phalcon\Filter\Sanitize\Special;
+use Phalcon\Filter\Sanitize\SpecialFull;
+use Phalcon\Filter\Sanitize\StringVal;
+use Phalcon\Filter\Sanitize\StringValLegacy;
+use Phalcon\Filter\Sanitize\Striptags;
+use Phalcon\Filter\Sanitize\Trim;
+use Phalcon\Filter\Sanitize\Upper;
+use Phalcon\Filter\Sanitize\UpperFirst;
+use Phalcon\Filter\Sanitize\UpperWords;
+use Phalcon\Filter\Sanitize\Url;
+
 /**
  * Lazy loads, stores and exposes sanitizer objects
  *
- * @method int    absint(mixed $input)
- * @method string alnum(mixed $input)
- * @method string alpha(mixed $input)
- * @method bool   bool(mixed $input)
- * @method string email(string $input)
- * @method float  float(mixed $input)
- * @method int    int(string $input)
- * @method string lower(string $input)
- * @method string lowerfirst(string $input)
- * @method mixed  regex(mixed $input, mixed $pattern, mixed $replace)
- * @method mixed  remove(mixed $input, mixed $replace)
- * @method mixed  replace(mixed $input, mixed $source, mixed $target)
- * @method string special(string $input)
- * @method string specialfull(string $input)
- * @method string string(string $input)
- * @method string stringlegacy(mixed $input)
- * @method string striptags(string $input)
- * @method string trim(string $input)
- * @method string upper(string $input)
- * @method string upperFirst(string $input)
- * @method null   upperWords(string $input): strin
- * @method null   url(string $input): strin
+ * @method int          absint(mixed $input)
+ * @method string       alnum(mixed $input)
+ * @method string       alpha(mixed $input)
+ * @method bool         bool(mixed $input)
+ * @method string       email(string $input)
+ * @method float        float(mixed $input)
+ * @method int          int(string $input)
+ * @method string|false ip(string $input, int $filter = FILTER_FLAG_NONE)
+ * @method string       lower(string $input)
+ * @method string       lowerfirst(string $input)
+ * @method mixed        regex(mixed $input, mixed $pattern, mixed $replace)
+ * @method mixed        remove(mixed $input, mixed $replace)
+ * @method mixed        replace(mixed $input, mixed $source, mixed $target)
+ * @method string       special(string $input)
+ * @method string       specialfull(string $input)
+ * @method string       string(string $input)
+ * @method string       stringlegacy(mixed $input)
+ * @method string       striptags(string $input)
+ * @method string       trim(string $input)
+ * @method string       upper(string $input)
+ * @method string       upperFirst(string $input)
+ * @method string|null  upperWords(string $input)
+ * @method string|null  url(string $input)
  *
  * @property array $mapper
  * @property array $services
  */
 class Filter implements \Phalcon\Filter\FilterInterface
 {
-    const FILTER_ABSINT = 'absint';
+    /**
+     * @var string
+     */
+    const string FILTER_ABSINT = 'absint';
 
-    const FILTER_ALNUM = 'alnum';
+    /**
+     * @var string
+     */
+    const string FILTER_ALNUM = 'alnum';
 
-    const FILTER_ALPHA = 'alpha';
+    /**
+     * @var string
+     */
+    const string FILTER_ALPHA = 'alpha';
 
-    const FILTER_BOOL = 'bool';
+    /**
+     * @var string
+     */
+    const string FILTER_BOOL = 'bool';
 
-    const FILTER_EMAIL = 'email';
+    /**
+     * @var string
+     */
+    const string FILTER_EMAIL = 'email';
 
-    const FILTER_FLOAT = 'float';
+    /**
+     * @var string
+     */
+    const string FILTER_FLOAT = 'float';
 
-    const FILTER_INT = 'int';
+    /**
+     * @var string
+     */
+    const string FILTER_INT = 'int';
 
-    const FILTER_LOWER = 'lower';
+    /**
+     * @var string
+     */
+    const string FILTER_IP = 'ip';
 
-    const FILTER_LOWERFIRST = 'lowerfirst';
+    /**
+     * @var string
+     */
+    const string FILTER_LOWER = 'lower';
 
-    const FILTER_REGEX = 'regex';
+    /**
+     * @var string
+     */
+    const string FILTER_LOWERFIRST = 'lowerfirst';
 
-    const FILTER_REMOVE = 'remove';
+    /**
+     * @var string
+     */
+    const string FILTER_REGEX = 'regex';
 
-    const FILTER_REPLACE = 'replace';
+    /**
+     * @var string
+     */
+    const string FILTER_REMOVE = 'remove';
 
-    const FILTER_SPECIAL = 'special';
+    /**
+     * @var string
+     */
+    const string FILTER_REPLACE = 'replace';
 
-    const FILTER_SPECIALFULL = 'specialfull';
+    /**
+     * @var string
+     */
+    const string FILTER_SPECIAL = 'special';
 
-    const FILTER_STRING = 'string';
+    /**
+     * @var string
+     */
+    const string FILTER_SPECIALFULL = 'specialfull';
 
-    const FILTER_STRING_LEGACY = 'stringlegacy';
+    /**
+     * @var string
+     */
+    const string FILTER_STRING = 'string';
 
-    const FILTER_STRIPTAGS = 'striptags';
+    /**
+     * @var string
+     */
+    const string FILTER_STRING_LEGACY = 'stringlegacy';
 
-    const FILTER_TRIM = 'trim';
+    /**
+     * @var string
+     */
+    const string FILTER_STRIPTAGS = 'striptags';
 
-    const FILTER_UPPER = 'upper';
+    /**
+     * @var string
+     */
+    const string FILTER_TRIM = 'trim';
 
-    const FILTER_UPPERFIRST = 'upperfirst';
+    /**
+     * @var string
+     */
+    const string FILTER_UPPER = 'upper';
 
-    const FILTER_UPPERWORDS = 'upperwords';
+    /**
+     * @var string
+     */
+    const string FILTER_UPPERFIRST = 'upperfirst';
 
-    const FILTER_URL = 'url';
+    /**
+     * @var string
+     */
+    const string FILTER_UPPERWORDS = 'upperwords';
+
+    /**
+     * @var string
+     */
+    const string FILTER_URL = 'url';
 
     /**
      * @var array
@@ -130,6 +227,17 @@ class Filter implements \Phalcon\Filter\FilterInterface
     }
 
     /**
+     * Returns the default sanitizer name to class map. This is the single
+     * source for the built-in sanitizer registry: when adding a sanitizer,
+     * add its `FILTER_` constant and its entry here.
+     *
+     * @return string[]
+     */
+    public static function getDefaultMapper(): array
+    {
+    }
+
+    /**
      * Checks if a service exists in the map array
      *
      * @param string $name
@@ -142,6 +250,14 @@ class Filter implements \Phalcon\Filter\FilterInterface
 
     /**
      * Sanitizes a value with a specified single or set of sanitizers
+     *
+     * Array policy: when `$value` is an array and `$noRecursive` is `false`
+     * (the default), each element is passed to the sanitizer individually
+     * and an array is returned - recursion is one level deep only. Elements
+     * that are themselves arrays are passed to the sanitizer as-is, which
+     * raises a `TypeError` for sanitizers that type their value parameter
+     * (e.g. `trim`). When `$noRecursive` is `true`, the whole array is
+     * passed to the sanitizer as a single value.
      *
      * @param mixed $value
      * @param mixed $sanitizers

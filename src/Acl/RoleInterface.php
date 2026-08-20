@@ -9,29 +9,15 @@
  */
 namespace Phalcon\Acl;
 
+use Phalcon\Contracts\Acl\Role as RoleContract;
+
 /**
  * Interface for Phalcon\Acl\Role
+ *
+ * @psalm-suppress DeprecatedInterface
+ * @deprecated Will be removed in a future major release.
+ *             Use {@see \Phalcon\Contracts\Acl\Role} instead.
  */
-interface RoleInterface
+interface RoleInterface extends RoleContract
 {
-    /**
-     * Returns the role name
-     *
-     * @return string
-     */
-    public function getName(): string;
-
-    /**
-     * Returns role description
-     *
-     * @return string
-     */
-    public function getDescription(): string;
-
-    /**
-     * Magic method __toString
-     *
-     * @return string
-     */
-    public function __toString(): string;
 }

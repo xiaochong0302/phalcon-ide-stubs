@@ -9,15 +9,23 @@
  */
 namespace Phalcon\Mvc\Model;
 
+use Phalcon\Contracts\Mvc\Model\Relation\CacheKeyProvider;
 use Phalcon\Db\Adapter\AdapterInterface;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\InjectionAwareInterface;
 use Phalcon\Events\EventsAwareInterface;
 use Phalcon\Events\ManagerInterface as EventsManagerInterface;
-use Phalcon\Mvc\ModelInterface;
+use Phalcon\Mvc\Model\Exceptions\InvalidConnectionService;
+use Phalcon\Mvc\Model\Exceptions\ManagerOrmServicesUnavailable;
+use Phalcon\Mvc\Model\Exceptions\ModelCouldNotLoad;
+use Phalcon\Mvc\Model\Exceptions\ReferencedFieldsMismatch;
+use Phalcon\Mvc\Model\Exceptions\RelationAliasMustBeString;
+use Phalcon\Mvc\Model\Exceptions\UnknownRelationType;
 use Phalcon\Mvc\Model\Query\Builder;
 use Phalcon\Mvc\Model\Query\BuilderInterface;
 use Phalcon\Mvc\Model\Query\StatusInterface;
+use Phalcon\Mvc\ModelInterface;
+use Phalcon\Support\Settings;
 use ReflectionClass;
 use ReflectionProperty;
 
@@ -43,7 +51,7 @@ use ReflectionProperty;
  *     }
  * );
  *
- * $robot = new Robots($di);
+ * $invoice = new Invoices($di);
  * ```
  */
 class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\InjectionAwareInterface, \Phalcon\Events\EventsAwareInterface
@@ -88,6 +96,15 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      * @var array
      */
     protected $customEventsManager = [];
+
+    /**
+     * Write connection services that have been written to during the current
+     * request cycle. Used by the sticky mechanism to route reads to the write
+     * connection after a write.
+     *
+     * @var array
+     */
+    protected $dirtyWriteServices = [];
 
     /**
      * Does the model use dynamic update, instead of updating all rows?
@@ -207,6 +224,14 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      * @var array
      */
     protected $schemas = [];
+
+    /**
+     * Whether reads should stick to the write connection after a write has
+     * occurred during the current request cycle.
+     *
+     * @var bool
+     */
+    protected $sticky = false;
 
     /**
      * @var array
@@ -353,23 +378,23 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      * Creates a Phalcon\Mvc\Model\Query and execute it
      *
      * ```php
-     * $model = new Robots();
+     * $model = new Invoices();
      * $manager = $model->getModelsManager();
      *
      * // \Phalcon\Mvc\Model\Resultset\Simple
-     * $manager->executeQuery('SELECT FROM Robots');
+     * $manager->executeQuery('SELECT FROM Invoices');
      *
      * // \Phalcon\Mvc\Model\Resultset\Complex
-     * $manager->executeQuery('SELECT COUNT(type) FROM Robots GROUP BY type');
+     * $manager->executeQuery('SELECT COUNT(inv_status_flag) FROM Invoices GROUP BY inv_status_flag');
      *
      * // \Phalcon\Mvc\Model\Query\StatusInterface
-     * $manager->executeQuery('INSERT INTO Robots (id) VALUES (1)');
+     * $manager->executeQuery('INSERT INTO Invoices (inv_id) VALUES (1)');
      *
      * // \Phalcon\Mvc\Model\Query\StatusInterface
-     * $manager->executeQuery('UPDATE Robots SET id = 0 WHERE id = :id:', ['id' => 1]);
+     * $manager->executeQuery('UPDATE Invoices SET inv_id = 0 WHERE inv_id = :id:', ['id' => 1]);
      *
      * // \Phalcon\Mvc\Model\Query\StatusInterface
-     * $manager->executeQuery('DELETE FROM Robots WHERE id = :id:', ['id' => 1]);
+     * $manager->executeQuery('DELETE FROM Invoices WHERE inv_id = :id:', ['id' => 1]);
      * ```
      *
      * @param string     $phql
@@ -447,7 +472,7 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      *
      * ```php
      * $relations = $modelsManager->getBelongsTo(
-     *     new Robots()
+     *     new Invoices()
      * );
      * ```
      *
@@ -470,7 +495,7 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      *
      * @return ResultsetInterface | bool
      */
-    public function getBelongsToRecords(string $modelName, string $modelRelation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, string $method = null): ResultsetInterface|bool
+    public function getBelongsToRecords(string $modelName, string $modelRelation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, ?string $method = null): ResultsetInterface|bool
     {
     }
 
@@ -543,10 +568,10 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      * @param string $modelRelation
      * @param \Phalcon\Mvc\ModelInterface $record
      * @param mixed $parameters
-     * @param string $method
+     * @param string|null $method
      * @return bool|ResultsetInterface
      */
-    public function getHasManyRecords(string $modelName, string $modelRelation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, string $method = null): ResultsetInterface|bool
+    public function getHasManyRecords(string $modelName, string $modelRelation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, ?string $method = null): ResultsetInterface|bool
     {
     }
 
@@ -587,10 +612,10 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      * @param string $modelRelation
      * @param \Phalcon\Mvc\ModelInterface $record
      * @param mixed $parameters
-     * @param string $method
+     * @param string|null $method
      * @return bool|ModelInterface
      */
-    public function getHasOneRecords(string $modelName, string $modelRelation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, string $method = null): ModelInterface|bool
+    public function getHasOneRecords(string $modelName, string $modelRelation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, ?string $method = null): ModelInterface|bool
     {
     }
 
@@ -607,9 +632,9 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
     /**
      * Get last initialized model
      *
-     * @return ModelInterface
+     * @return ModelInterface|null
      */
-    public function getLastInitialized(): ModelInterface
+    public function getLastInitialized(): ModelInterface|null
     {
     }
 
@@ -692,7 +717,7 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      *
      * @return \Phalcon\Mvc\Model\Resultset\Simple|int|false
      */
-    public function getRelationRecords(RelationInterface $relation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, string $method = null)
+    public function getRelationRecords(RelationInterface $relation, \Phalcon\Mvc\ModelInterface $record, $parameters = null, ?string $method = null)
     {
     }
 
@@ -862,7 +887,7 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      *
      * ```php
      * $isPublic = $manager->isVisibleModelProperty(
-     *     new Robots(),
+     *     new Invoices(),
      *     "name"
      * );
      * ```
@@ -889,13 +914,46 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
     }
 
     /**
-     * Loads a model throwing an exception if it doesn't exist
+     * Loads a model throwing an exception if it does not exist
      *
      * @param string $modelName
      *
      * @return ModelInterface
      */
     public function load(string $modelName): ModelInterface
+    {
+    }
+
+    /**
+     * Merge two arrays of find parameters
+     *
+     * The order matters. Conditions coming from key 0 or "conditions" are
+     * ANDed in argument order; `bind` and `bindTypes` are merged for the
+     * second argument only and assigned outright for the first. Pass the
+     * parameters whose bindings must survive as the second argument.
+     *
+     * Static because it reads nothing but its arguments, and public so bulk
+     * loaders can reuse the merge instead of duplicating these semantics.
+     *
+     * @param mixed $findParamsOne
+     * @param mixed $findParamsTwo
+     *
+     * @return array
+     */
+    final public static function mergeFindParameters($findParamsOne, $findParamsTwo): array
+    {
+    }
+
+    /**
+     * Dispatch an event to the listeners and behaviors
+     * This method expects that the endpoint listeners/behaviors returns true
+     * meaning that a least one was implemented
+     *
+     * @param ModelInterface $model
+     * @param string         $eventName
+     * @param mixed          $data
+     */
+    public function missingMethod(\Phalcon\Mvc\ModelInterface $model, string $eventName, $data)
     {
     }
 
@@ -912,15 +970,38 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
     }
 
     /**
-     * Dispatch an event to the listeners and behaviors
-     * This method expects that the endpoint listeners/behaviors returns true
-     * meaning that a least one was implemented
+     * Marks the model's write connection service as written-to for the
+     * current request cycle. Used by the sticky mechanism to route
+     * subsequent reads to the write connection.
      *
      * @param ModelInterface $model
-     * @param string         $eventName
-     * @param mixed          $data
+     *
+     * @return void
      */
-    public function missingMethod(\Phalcon\Mvc\ModelInterface $model, string $eventName, $data)
+    public function registerWrite(\Phalcon\Mvc\ModelInterface $model): void
+    {
+    }
+
+    /**
+     * Removes a behavior from a model
+     *
+     * @param ModelInterface $model
+     * @param string         $behaviorClass
+     *
+     * @return void
+     */
+    public function removeBehavior(\Phalcon\Mvc\ModelInterface $model, string $behaviorClass): void
+    {
+    }
+
+    /**
+     * Clears the per-request sticky write tracking. Call this between
+     * requests in long-running runtimes (e.g. Swoole, RoadRunner) where the
+     * manager instance is reused across requests.
+     *
+     * @return void
+     */
+    public function resetConnectionState(): void
     {
     }
 
@@ -987,9 +1068,9 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      *     }
      * );
      *
-     * $robots = new Robots();
+     * $invoices = new Invoices();
      *
-     * echo $robots->getSource(); // wp_robots
+     * echo $invoices->getSource(); // wp_co_invoices
      * ```
      *
      * $param string $prefix
@@ -1052,6 +1133,19 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
     }
 
     /**
+     * Enables or disables sticky connections. When enabled, once a model has
+     * written to its write connection during the current request cycle, any
+     * further reads for that write service use the write connection.
+     *
+     * @param bool $sticky
+     *
+     * @return void
+     */
+    public function setSticky(bool $sticky): void
+    {
+    }
+
+    /**
      * Sets write connection service for a model
      *
      * @param ModelInterface $model
@@ -1085,18 +1179,6 @@ class Manager implements \Phalcon\Mvc\Model\ManagerInterface, \Phalcon\Di\Inject
      * @return AdapterInterface
      */
     protected function getConnection(\Phalcon\Mvc\ModelInterface $model, array $connectionServices): AdapterInterface
-    {
-    }
-
-    /**
-     * Merge two arrays of find parameters
-     *
-     * @param mixed $findParamsOne
-     * @param mixed $findParamsTwo
-     *
-     * @return array
-     */
-    final protected function mergeFindParameters($findParamsOne, $findParamsTwo): array
     {
     }
 

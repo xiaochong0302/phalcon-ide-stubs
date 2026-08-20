@@ -9,10 +9,12 @@
  */
 namespace Phalcon\Filter\Validation\Validator;
 
-use Phalcon\Messages\Message;
 use Phalcon\Filter\Validation;
-use Phalcon\Filter\Validation\ValidatorInterface;
 use Phalcon\Filter\Validation\AbstractValidator;
+use Phalcon\Filter\Validation\Exceptions\InvalidCallbackReturn;
+use Phalcon\Filter\Validation\ValidatorInterface;
+use Phalcon\Messages\Message;
+use ReflectionFunction;
 
 /**
  * Calls user function for validation

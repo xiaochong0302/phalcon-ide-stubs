@@ -9,8 +9,9 @@
  */
 namespace Phalcon\Filter\Validation;
 
-use Phalcon\Messages\Message;
 use Phalcon\Filter\Validation;
+use Phalcon\Filter\Validation\Exceptions\FieldNotPrintable;
+use Phalcon\Messages\Message;
 use Phalcon\Support\Helper\Arr\Whitelist;
 
 /**
@@ -24,6 +25,16 @@ abstract class AbstractValidator implements \Phalcon\Filter\Validation\Validator
      * @var string|null
      */
     protected $template = null;
+
+    /**
+     * Whether the template/message has been explicitly assigned on the
+     * instance (constructor `message`/`template` option or setTemplate()).
+     * While false, `template` still holds the validator's class default and a
+     * global default registered via Validation::setDefaultMessages() applies.
+     *
+     * @var bool
+     */
+    protected $templateChanged = false;
 
     /**
      * Message templates
@@ -66,7 +77,7 @@ abstract class AbstractValidator implements \Phalcon\Filter\Validation\Validator
      *
      * @return string
      */
-    public function getTemplate(string $field = null): string
+    public function getTemplate(?string $field = null): string
     {
     }
 
@@ -87,6 +98,20 @@ abstract class AbstractValidator implements \Phalcon\Filter\Validation\Validator
      * @return bool
      */
     public function hasOption(string $key): bool
+    {
+    }
+
+    /**
+     * Checks whether the field can be considered empty and therefore
+     * skipped, honoring the `allowEmpty` option (boolean flag, list of
+     * empty values, or per-field map).
+     *
+     * @param Validation $validation
+     * @param string     $field
+     *
+     * @return bool
+     */
+    public function isAllowEmpty(\Phalcon\Filter\Validation $validation, string $field): bool
     {
     }
 

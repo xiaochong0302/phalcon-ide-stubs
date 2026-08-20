@@ -20,7 +20,6 @@ interface AdapterInterface
      * Check whether is defined a translation key in the internal array
      *
      * @param string $index
-     *
      * @return bool
      */
     public function has(string $index): bool;
@@ -28,9 +27,20 @@ interface AdapterInterface
     /**
      * Returns the translation related to the given key
      *
-     * @param string $translateKey
-     * @param array  $placeholders
+     * Missing-key semantics differ per adapter:
      *
+     * | Adapter     | Missing key returns       | Strict mode (triggerError) |
+     * | ----------- | ------------------------- | -------------------------- |
+     * | NativeArray | the key, not interpolated | yes                        |
+     * | Csv         | the key, interpolated     | yes                        |
+     * | Gettext     | the msgid (gettext)       | yes                        |
+     *
+     * With strict mode enabled (the `triggerError` option) a missing key
+     * throws `KeyNotFound` instead of falling back.
+     *
+     * @phpstan-param array<string, string> $placeholders
+     * @param string $translateKey
+     * @param array $placeholders
      * @return string
      */
     public function query(string $translateKey, array $placeholders = []): string;
@@ -38,9 +48,9 @@ interface AdapterInterface
     /**
      * Returns the translation string of the given key
      *
+     * @phpstan-param array<string, string> $placeholders
      * @param string $translateKey
-     * @param array  $placeholders
-     *
+     * @param array $placeholders
      * @return string
      */
     public function t(string $translateKey, array $placeholders = []): string;

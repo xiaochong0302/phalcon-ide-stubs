@@ -9,10 +9,12 @@
  */
 namespace Phalcon\Filter\Validation\Validator;
 
-use Phalcon\Messages\Message;
 use Phalcon\Filter\Validation;
-use Phalcon\Filter\Validation\Exception;
 use Phalcon\Filter\Validation\AbstractValidator;
+use Phalcon\Filter\Validation\Exception;
+use Phalcon\Filter\Validation\Exceptions\MissingMbstring;
+use Phalcon\Messages\Message;
+use Phalcon\Traits\Php\InfoTrait;
 
 /**
  * Checks that two values have the same value
@@ -27,7 +29,7 @@ use Phalcon\Filter\Validation\AbstractValidator;
  *     "password",
  *     new Confirmation(
  *         [
- *             "message" => "Password doesn't match confirmation",
+ *             "message" => "Password does not match confirmation",
  *             "with"    => "confirmPassword",
  *         ]
  *     )
@@ -41,8 +43,8 @@ use Phalcon\Filter\Validation\AbstractValidator;
  *     new Confirmation(
  *         [
  *             "message" => [
- *                 "password" => "Password doesn't match confirmation",
- *                 "email"    => "Email doesn't match confirmation",
+ *                 "password" => "Password does not match confirmation",
+ *                 "email"    => "Email does not match confirmation",
  *             ],
  *             "with" => [
  *                 "password" => "confirmPassword",
@@ -55,6 +57,9 @@ use Phalcon\Filter\Validation\AbstractValidator;
  */
 class Confirmation extends AbstractValidator
 {
+    use \Phalcon\Traits\Php\InfoTrait;
+
+
     protected $template = 'Field :field must be the same as :with';
 
     /**

@@ -12,12 +12,11 @@ namespace Phalcon\Mvc\Model\Transaction;
 use Phalcon\Di\Di;
 use Phalcon\Di\DiInterface;
 use Phalcon\Di\InjectionAwareInterface;
+use Phalcon\Mvc\Model\Exceptions\ManagerOrmServicesUnavailable;
 use Phalcon\Mvc\Model\Transaction;
 use Phalcon\Mvc\Model\TransactionInterface;
 
 /**
- * Phalcon\Mvc\Model\Transaction\Manager
- *
  * A transaction acts on a single database connection. If you have multiple
  * class-specific databases, the transaction will not protect interaction among
  * them.
@@ -35,25 +34,25 @@ use Phalcon\Mvc\Model\TransactionInterface;
  *
  *    $transaction = $transactionManager->get();
  *
- *    $robot = new Robots();
+ *    $invoice = new Invoices();
  *
- *    $robot->setTransaction($transaction);
+ *    $invoice->setTransaction($transaction);
  *
- *    $robot->name       = "WALL·E";
- *    $robot->created_at = date("Y-m-d");
+ *    $invoice->inv_title       = "Test Invoice";
+ *    $invoice->inv_created_at = date("Y-m-d");
  *
- *    if ($robot->save() === false) {
- *        $transaction->rollback("Can't save robot");
+ *    if ($invoice->save() === false) {
+ *        $transaction->rollback("Can't save invoice");
  *    }
  *
- *    $robotPart = new RobotParts();
+ *    $product = new Products();
  *
- *    $robotPart->setTransaction($transaction);
+ *    $product->setTransaction($transaction);
  *
- *    $robotPart->type = "head";
+ *    $product->prd_name = "Widget";
  *
- *    if ($robotPart->save() === false) {
- *        $transaction->rollback("Can't save robot part");
+ *    if ($product->save() === false) {
+ *        $transaction->rollback("Can't save product");
  *    }
  *
  *    $transaction->commit();
@@ -99,7 +98,7 @@ class Manager implements \Phalcon\Mvc\Model\Transaction\ManagerInterface, \Phalc
      *
      * @param DiInterface|null $container
      */
-    public function __construct(\Phalcon\Di\DiInterface $container = null)
+    public function __construct(?\Phalcon\Di\DiInterface $container = null)
     {
     }
 

@@ -9,25 +9,26 @@
  */
 namespace Phalcon\Html\Helper;
 
-use Phalcon\Support\Helper\Str\Interpolate;
 use Phalcon\Html\Escaper\EscaperInterface;
+use Phalcon\Mvc\Url\UrlInterface;
+use Phalcon\Support\Helper\Str\Interpolate;
 
 /**
  * This component offers an easy way to create breadcrumbs for your application.
  * The resulting HTML when calling `render()` will have each breadcrumb enclosed
  * in `<li>` tags, while the whole string is enclosed in `<nav>` and `<ol>` tags.
  *
- * @phpstan-type TTemplate = array{
+ * @phpstan-type TTemplate array{
  *      main: string,
  *      line: string,
- *      last: string,
- * }
- * @phpstan-type TElement = array{
+ *      last: string
+ *  }
+ * @phpstan-type TElement array{
  *      attributes: array<string, string>,
  *      icon: string,
  *      link: string,
- *      text: string,
- * }
+ *      text: string
+ *  }
  */
 class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
 {
@@ -35,6 +36,22 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * @var array<string, string>
      */
     private $attributes = [];
+
+    /**
+     * Link prefix prepended to every non-empty link during rendering.
+     * Auto-populated from the Url service when one is injected.
+     *
+     * @var string
+     */
+    private $prefix = '';
+
+    /**
+     * Optional Url service used to resolve links via get().
+     * When set, takes priority over the string prefix.
+     *
+     * @var UrlInterface|null
+     */
+    private $url = null;
 
     /**
      * Keeps all the breadcrumbs.
@@ -73,10 +90,9 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * AbstractHelper constructor.
      *
      * @param EscaperInterface $escaper
-     * @param string $indent = ""
-     * @param string|null $delimiter = null
+     * @param UrlInterface|null $url
      */
-    public function __construct(\Phalcon\Html\Escaper\EscaperInterface $escaper)
+    public function __construct(\Phalcon\Html\Escaper\EscaperInterface $escaper, ?\Phalcon\Mvc\Url\UrlInterface $url = null)
     {
     }
 
@@ -84,10 +100,10 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * Sets the indent and delimiter and returns the object back.
      *
      * @param string $indent
-     * @param string $delimiter
-     * @return Breadcrumbs
+     * @param string|null $delimiter
+     * @return static
      */
-    public function __invoke(string $indent = '    ', string $delimiter = null): Breadcrumbs
+    public function __invoke(string $indent = '    ', ?string $delimiter = null): static
     {
     }
 
@@ -109,9 +125,9 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * @param string $link
      * @param string $icon
      * @param array $attributes
-     * @return Breadcrumbs
+     * @return static
      */
-    public function add(string $text, string $link = '', string $icon = '', array $attributes = []): Breadcrumbs
+    public function add(string $text, string $link = '', string $icon = '', array $attributes = []): static
     {
     }
 
@@ -131,9 +147,9 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
     /**
      * Clear the attributes of the parent element.
      *
-     * @return Breadcrumbs
+     * @return static
      */
-    public function clearAttributes(): Breadcrumbs
+    public function clearAttributes(): static
     {
     }
 
@@ -143,6 +159,15 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * @return array<string, string>
      */
     public function getAttributes(): array
+    {
+    }
+
+    /**
+     * Returns the link prefix.
+     *
+     * @return string
+     */
+    public function getPrefix(): string
     {
     }
 
@@ -196,9 +221,20 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * Set the attributes for the parent element.
      *
      * @param array $attributes
-     * @return Breadcrumbs
+     * @return static
      */
-    public function setAttributes(array $attributes): Breadcrumbs
+    public function setAttributes(array $attributes): static
+    {
+    }
+
+    /**
+     * Set the link prefix prepended to every non-empty link during rendering.
+     * When a Url service was injected, calling this method replaces it.
+     *
+     * @param string $prefix
+     * @return static
+     */
+    public function setPrefix(string $prefix): static
     {
     }
 
@@ -206,9 +242,9 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * Set the separator.
      *
      * @param string $separator
-     * @return Breadcrumbs
+     * @return static
      */
-    public function setSeparator(string $separator): Breadcrumbs
+    public function setSeparator(string $separator): static
     {
     }
 
@@ -218,9 +254,9 @@ class Breadcrumbs extends \Phalcon\Html\Helper\AbstractHelper
      * @param string $main
      * @param string $line
      * @param string $last
-     * @return Breadcrumbs
+     * @return static
      */
-    public function setTemplate(string $main, string $line, string $last): Breadcrumbs
+    public function setTemplate(string $main, string $line, string $last): static
     {
     }
 

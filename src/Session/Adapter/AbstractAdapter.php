@@ -10,7 +10,9 @@
 namespace Phalcon\Session\Adapter;
 
 use Phalcon\Storage\Adapter\AdapterInterface;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
 use SessionHandlerInterface;
+use SessionUpdateTimestampHandlerInterface;
 
 /**
  * This file is part of the Phalcon Framework.
@@ -20,12 +22,12 @@ use SessionHandlerInterface;
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-abstract class AbstractAdapter implements \SessionHandlerInterface
+abstract class AbstractAdapter implements \SessionHandlerInterface, \SessionUpdateTimestampHandlerInterface
 {
-    /**
-     * @var AdapterInterface
-     */
-    protected $adapter;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
+    protected \Phalcon\Storage\Adapter\AdapterInterface $adapter;
 
     /**
      * Close
@@ -39,10 +41,10 @@ abstract class AbstractAdapter implements \SessionHandlerInterface
     /**
      * Destroy
      *
-     * @param mixed $id
+     * @param string $id
      * @return bool
      */
-    public function destroy($id): bool
+    public function destroy(string $id): bool
     {
     }
 
@@ -57,45 +59,55 @@ abstract class AbstractAdapter implements \SessionHandlerInterface
     }
 
     /**
-     * Read
+     * Open
      *
-     * @param mixed $id
-     * @return string
+     * @param string $path
+     * @param string $name
+     * @return bool
      */
-    public function read($id): string
+    public function open(string $path, string $name): bool
     {
     }
 
     /**
-     * Open
+     * Read
      *
-     * @param mixed $path
-     * @param mixed $name
+     * @param string $id
+     * @return string
+     */
+    public function read(string $id): string
+    {
+    }
+
+    /**
+     * Refresh the session lifetime without changing the session data
+     *
+     * @param string $id
+     * @param string $data
      * @return bool
      */
-    public function open($path, $name): bool
+    public function updateTimestamp(string $id, string $data): bool
+    {
+    }
+
+    /**
+     * Validate the session id (used when strict mode is enabled)
+     *
+     * @param string $id
+     * @return bool
+     */
+    public function validateId(string $id): bool
     {
     }
 
     /**
      * Write
      *
-     * @param mixed $id
-     * @param mixed $data
+     * @param string $id
+     * @param string $data
      * @return bool
      */
-    public function write($id, $data): bool
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    protected function getArrVal(array $collection, $index, $defaultValue = null): mixed
+    public function write(string $id, string $data): bool
     {
     }
 }

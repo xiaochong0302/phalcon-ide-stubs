@@ -10,46 +10,47 @@
 namespace Phalcon\Session;
 
 use InvalidArgumentException;
-use RuntimeException;
-use SessionHandlerInterface;
+use Phalcon\Contracts\Session\SessionTypes;
 use Phalcon\Di\AbstractInjectionAware;
 use Phalcon\Di\DiInterface;
-use Phalcon\Support\Helper\Arr\Get;
+use Phalcon\Session\Exceptions\InvalidSessionAdapter;
+use Phalcon\Session\Exceptions\InvalidSessionId;
+use Phalcon\Session\Exceptions\InvalidSessionName;
+use Phalcon\Session\Exceptions\SessionAlreadyStarted;
+use Phalcon\Session\Exceptions\SessionModificationDenied;
+use Phalcon\Traits\Php\HeaderTrait;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
+use SessionHandlerInterface;
 
 /**
- * @property SessionHandlerInterface|null $adapter
- * @property string                       $name
- * @property array                        $options
- * @property string                       $uniqueId
+ * Session manager class
+ *
+ * @phpstan-import-type session_options from SessionTypes
  */
 class Manager extends AbstractInjectionAware implements \Phalcon\Session\ManagerInterface
 {
-    /**
-     * @var SessionHandlerInterface|null
-     */
-    private $adapter = null;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+    use \Phalcon\Traits\Php\HeaderTrait;
+
+
+    private ?\SessionHandlerInterface $adapter = null;
+
+    private string $name = '';
 
     /**
-     * @var string
+     * @var array<string, mixed>
+     *
+     * @phpstan-var session_options
      */
-    private $name = '';
+    private array $options = [];
 
-    /**
-     * @var array
-     */
-    private $options = [];
-
-    /**
-     * @var string
-     */
-    private $uniqueId = '';
+    private string $uniqueId = '';
 
     /**
      * Manager constructor.
      *
-     * @param array $options = [
-     *     'uniqueId' => null
-     * ]
+     * @phpstan-param session_options $options
+     * @param array $options
      */
     public function __construct(array $options = [])
     {
@@ -132,9 +133,9 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
     /**
      * Returns the stored session adapter
      *
-     * @return SessionHandlerInterface
+     * @return SessionHandlerInterface|null
      */
-    public function getAdapter(): SessionHandlerInterface
+    public function getAdapter(): SessionHandlerInterface|null
     {
     }
 
@@ -157,6 +158,16 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
     }
 
     /**
+     * Get internal options
+     *
+     * @phpstan-return session_options
+     * @return array
+     */
+    public function getOptions(): array
+    {
+    }
+
+    /**
      * Check whether a session variable is set in an application context
      *
      * @param string $key
@@ -167,16 +178,9 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
     }
 
     /**
-     * Get internal options
-     *
-     * @return array
-     */
-    public function getOptions(): array
-    {
-    }
-
-    /**
-     * Regenerates the session id using the adapter.
+     * Regenerates the session id via `session_regenerate_id()` (when the
+     * session is active). The registered save handler persists the data
+     * under the new id.
      *
      * @param bool $deleteOldSession
      * @return ManagerInterface
@@ -219,8 +223,10 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
     /**
      * Set session Id
      *
-     * @param string $sessionId
      * @return ManagerInterface
+     * @throws InvalidSessionId
+     * @throws SessionAlreadyStarted
+     * @param string $sessionId
      */
     public function setId(string $sessionId): ManagerInterface
     {
@@ -232,9 +238,9 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
      *
      * @param string $name
      *
-     * @throws InvalidArgumentException
-     *
-     * @return Manager
+     * @return ManagerInterface
+     * @throws InvalidSessionName
+     * @throws SessionModificationDenied
      */
     public function setName(string $name): ManagerInterface
     {
@@ -243,6 +249,7 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
     /**
      * Sets session's options
      *
+     * @phpstan-param session_options $options
      * @param array $options
      * @return void
      */
@@ -270,17 +277,6 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
     }
 
     /**
-     * Checks if or where headers have been sent
-     *
-     * @return bool
-     *
-     * @link https://php.net/manual/en/function.headers-sent.php
-     */
-    protected function phpHeadersSent(): bool
-    {
-    }
-
-    /**
      * Returns the key prefixed
      *
      * @param string $key
@@ -288,17 +284,6 @@ class Manager extends AbstractInjectionAware implements \Phalcon\Session\Manager
      * @return string
      */
     private function getUniqueKey(string $key): string
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    private function getArrVal(array $collection, $index, $defaultValue = null): mixed
     {
     }
 }

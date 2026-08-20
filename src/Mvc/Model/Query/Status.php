@@ -13,23 +13,21 @@ use Phalcon\Messages\MessageInterface;
 use Phalcon\Mvc\ModelInterface;
 
 /**
- * Phalcon\Mvc\Model\Query\Status
- *
  * This class represents the status returned by a PHQL
  * statement like INSERT, UPDATE or DELETE. It offers context
  * information and the related messages produced by the
  * model which finally executes the operations when it fails
  *
  * ```php
- * $phql = "UPDATE Robots SET name = :name:, type = :type:, year = :year: WHERE id = :id:";
+ * $phql = "UPDATE Invoices SET inv_title = :inv_title:, inv_status_flag = :inv_status_flag:, inv_total = :inv_total: WHERE inv_id = :inv_id:";
  *
  * $status = $app->modelsManager->executeQuery(
  *     $phql,
  *     [
- *         "id"   => 100,
- *         "name" => "Astroy Boy",
- *         "type" => "mechanical",
- *         "year" => 1959,
+ *         "inv_id"          => 100,
+ *         "inv_title"       => "Test Invoice",
+ *         "inv_status_flag" => 1,
+ *         "inv_total"       => 1959,
  *     ]
  * );
  *
@@ -55,9 +53,9 @@ class Status implements \Phalcon\Mvc\Model\Query\StatusInterface
      * Phalcon\Mvc\Model\Query\Status
      *
      * @param bool $success
-     * @param \Phalcon\Mvc\ModelInterface $model
+     * @param \Phalcon\Mvc\ModelInterface|null $model
      */
-    public function __construct(bool $success, \Phalcon\Mvc\ModelInterface $model = null)
+    public function __construct(bool $success, ?\Phalcon\Mvc\ModelInterface $model = null)
     {
     }
 
@@ -73,9 +71,9 @@ class Status implements \Phalcon\Mvc\Model\Query\StatusInterface
     /**
      * Returns the model that executed the action
      *
-     * @return ModelInterface
+     * @return ModelInterface|null
      */
-    public function getModel(): ModelInterface
+    public function getModel(): ModelInterface|null
     {
     }
 

@@ -9,8 +9,16 @@
  */
 namespace Phalcon\Config;
 
+use Phalcon\Config\Adapter\Grouped;
+use Phalcon\Config\Adapter\Ini;
+use Phalcon\Config\Adapter\Json;
+use Phalcon\Config\Adapter\Php;
+use Phalcon\Config\Adapter\Yaml;
 use Phalcon\Config\Config;
 use Phalcon\Config\ConfigInterface;
+use Phalcon\Config\Exceptions\ConfigNotArrayOrObject;
+use Phalcon\Config\Exceptions\MissingConfigOption;
+use Phalcon\Config\Exceptions\MissingFileExtension;
 use Phalcon\Factory\AbstractFactory;
 
 /**
@@ -71,9 +79,30 @@ class ConfigFactory extends AbstractFactory
     }
 
     /**
+     * Adapter name aliases resolved by `load()` (file extensions that map
+     * to a registered adapter)
+     *
+     * @return array<string, string>
+     */
+    protected function getAdapterAliases(): array
+    {
+    }
+
+    /**
      * @return string
      */
     protected function getExceptionClass(): string
+    {
+    }
+
+    /**
+     * Adapters accepting an extra constructor argument, with the config
+     * option carrying it and its default value. Single source for the
+     * parameter-forwarding knowledge used by `load()` and `newInstance()`.
+     *
+     * @return array<string, array>
+     */
+    protected function getExtraArguments(): array
     {
     }
 

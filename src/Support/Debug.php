@@ -9,66 +9,55 @@
  */
 namespace Phalcon\Support;
 
-use ErrorException;
-use Phalcon\Support\Debug\Exception;
-use ReflectionClass;
+use Phalcon\Contracts\Support\Debug\Renderer;
+use Phalcon\Contracts\Support\SupportTypes;
+use Phalcon\Support\Debug\Exceptions\RequestHalted;
+use Phalcon\Support\Debug\Exceptions\RuntimeWarning;
+use Phalcon\Support\Debug\Renderer\HtmlRenderer;
+use Phalcon\Support\Debug\ReportBuilder;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
 use ReflectionException;
-use ReflectionFunction;
 use Throwable;
 
 /**
- * Provides debug capabilities to Phalcon applications
+ * Listens for uncaught exceptions and renders them. Acts as a thin coordinator
+ * delegating data collection to ReportBuilder and presentation to a Renderer.
+ *
+ * @phpstan-import-type support_debug_blacklist from SupportTypes
+ * @phpstan-import-type support_debug_blacklist_input from SupportTypes
+ * @phpstan-import-type support_debug_variables from SupportTypes
  */
 class Debug
 {
-    /**
-     * @var array
-     */
-    protected $blacklist = ['request' => [], 'server' => []];
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
+    protected static bool $isActive = false;
 
     /**
-     * @var array
+     * @phpstan-var support_debug_blacklist
      */
-    protected $data = [];
+    protected array $blacklist = ['request' => [], 'server' => []];
 
     /**
-     * @var bool
+     * @phpstan-var support_debug_variables
      */
-    protected $hideDocumentRoot = false;
+    protected array $data = [];
 
-    /**
-     * @var bool
-     */
-    protected static $isActive = false;
+    protected bool $hideDocumentRoot = false;
 
-    /**
-     * @var bool
-     */
-    protected $showBackTrace = true;
+    protected \Phalcon\Contracts\Support\Debug\Renderer $renderer;
 
-    /**
-     * @var bool
-     */
-    protected $showFileFragment = false;
+    protected \Phalcon\Support\Debug\ReportBuilder $reportBuilder;
 
-    /**
-     * @var bool
-     */
-    protected $showFiles = true;
+    protected bool $showBackTrace = true;
 
-    /**
-     * @var string
-     */
-    protected $uri = 'https://assets.phalcon.io/debug/5.0.x/';
+    protected bool $showFileFragment = false;
 
-    /**
-     * @var Version
-     */
-    private $version;
+    protected bool $showFiles = true;
 
-    /**
-     * Constructor setting a reusable version object
-     */
+    protected string $uri = 'https://assets.phalcon.io/debug/5.0.x/';
+
     public function __construct()
     {
     }
@@ -76,9 +65,9 @@ class Debug
     /**
      * Clears are variables added previously
      *
-     * @return Debug
+     * @return static
      */
-    public function clearVars(): Debug
+    public function clearVars(): static
     {
     }
 
@@ -86,10 +75,9 @@ class Debug
      * Adds a variable to the debug output
      *
      * @param mixed $variable
-     * @param mixed $varz
-     * @return Debug
+     * @return static
      */
-    public function debugVar($varz): Debug
+    public function debugVar($variable): static
     {
     }
 
@@ -112,6 +100,15 @@ class Debug
     }
 
     /**
+     * Returns the renderer used to produce the output
+     *
+     * @return Renderer
+     */
+    public function getRenderer(): Renderer
+    {
+    }
+
+    /**
      * Generates a link to the current version documentation
      *
      * @return string
@@ -123,7 +120,7 @@ class Debug
     /**
      * Halts the request showing a backtrace
      *
-     * @throws Exception
+     * @throws RequestHalted
      * @return void
      */
     public function halt(): void
@@ -135,33 +132,34 @@ class Debug
      *
      * @param bool $exceptions
      * @param bool $lowSeverity
-     * @return Debug
+     * @return static
      */
-    public function listen(bool $exceptions = true, bool $lowSeverity = false): Debug
+    public function listen(bool $exceptions = true, bool $lowSeverity = false): static
     {
     }
 
     /**
      * Listen for uncaught exceptions
      *
-     * @return Debug
+     * @return static
      */
-    public function listenExceptions(): Debug
+    public function listenExceptions(): static
     {
     }
 
     /**
      * Listen for non silent notices or warnings
      *
-     * @return Debug
+     * @return static
      */
-    public function listenLowSeverity(): Debug
+    public function listenLowSeverity(): static
     {
     }
 
     /**
      * Handles uncaught exceptions
      *
+     * @throws ReflectionException
      * @param \Throwable $exception
      * @return bool
      */
@@ -172,23 +170,23 @@ class Debug
     /**
      * Throws an exception when a notice or warning is raised
      *
-     * @param mixed $severity
-     * @param mixed $message
-     * @param mixed $file
-     * @param mixed $line
+     * @throws RuntimeWarning
+     * @param int $severity
+     * @param string $message
+     * @param string $file
+     * @param int $line
      * @return void
      */
-    public function onUncaughtLowSeverity($severity, $message, $file, $line): void
+    public function onUncaughtLowSeverity(int $severity, string $message, string $file, int $line): void
     {
     }
 
     /**
      * Render exception to html format.
      *
-     * @param Throwable $exception
-     *
-     * @return string
      * @throws ReflectionException
+     * @param \Throwable $exception
+     * @return string
      */
     public function renderHtml(\Throwable $exception): string
     {
@@ -197,10 +195,21 @@ class Debug
     /**
      * Sets if files the exception's backtrace must be showed
      *
+     * @phpstan-param support_debug_blacklist_input $blacklist
      * @param array $blacklist
-     * @return Debug
+     * @return static
      */
-    public function setBlacklist(array $blacklist): Debug
+    public function setBlacklist(array $blacklist): static
+    {
+    }
+
+    /**
+     * Sets the renderer used to produce the output
+     *
+     * @param \Phalcon\Contracts\Support\Debug\Renderer $renderer
+     * @return static
+     */
+    public function setRenderer(\Phalcon\Contracts\Support\Debug\Renderer $renderer): static
     {
     }
 
@@ -208,9 +217,9 @@ class Debug
      * Sets if files the exception's backtrace must be showed
      *
      * @param bool $showBackTrace
-     * @return Debug
+     * @return static
      */
-    public function setShowBackTrace(bool $showBackTrace): Debug
+    public function setShowBackTrace(bool $showBackTrace): static
     {
     }
 
@@ -219,9 +228,9 @@ class Debug
      * or just the fragment related to the exception
      *
      * @param bool $showFileFragment
-     * @return Debug
+     * @return static
      */
-    public function setShowFileFragment(bool $showFileFragment): Debug
+    public function setShowFileFragment(bool $showFileFragment): static
     {
     }
 
@@ -229,9 +238,9 @@ class Debug
      * Set if files part of the backtrace must be shown in the output
      *
      * @param bool $showFiles
-     * @return Debug
+     * @return static
      */
-    public function setShowFiles(bool $showFiles): Debug
+    public function setShowFiles(bool $showFiles): static
     {
     }
 
@@ -239,67 +248,9 @@ class Debug
      * Change the base URI for static resources
      *
      * @param string $uri
-     * @return Debug
+     * @return static
      */
-    public function setUri(string $uri): Debug
-    {
-    }
-
-    /**
-     * Escapes a string with htmlentities
-     *
-     * @param string $value
-     * @return string
-     */
-    protected function escapeString(string $value): string
-    {
-    }
-
-    /**
-     * Produces a recursive representation of an array
-     *
-     * @param array $arguments
-     * @param int   $number
-     *
-     * @return string|null
-     * @param array $argument
-     * @param mixed $n
-     */
-    protected function getArrayDump(array $argument, $n = 0): string|null
-    {
-    }
-
-    /**
-     * Produces an string representation of a variable
-     *
-     * @param mixed $variable
-     * @return string
-     */
-    protected function getVarDump($variable): string
-    {
-    }
-
-    /**
-     * Shows a backtrace item
-     *
-     * @param int   $n
-     * @param array $trace
-     *
-     * @return string
-     * @throws ReflectionException
-     */
-    final protected function showTraceItem(int $n, array $trace): string
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    private function getArrVal(array $collection, $index, $defaultValue = null): mixed
+    public function setUri(string $uri): static
     {
     }
 }

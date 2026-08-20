@@ -9,10 +9,13 @@
  */
 namespace Phalcon\Encryption\Security\JWT;
 
+use DateTimeImmutable;
+use Phalcon\Encryption\Security\JWT\Exceptions\InvalidAudienceType;
 use Phalcon\Encryption\Security\JWT\Exceptions\ValidatorException;
 use Phalcon\Encryption\Security\JWT\Signer\SignerInterface;
 use Phalcon\Encryption\Security\JWT\Token\Enum;
 use Phalcon\Encryption\Security\JWT\Token\Token;
+use Phalcon\Time\Clock\ClockInterface;
 
 /**
  * Class Validator
@@ -42,10 +45,16 @@ class Validator
     /**
      * Validator constructor.
      *
-     * @param Token $token
-     * @param int   $timeShift
+     * @param Token               $token
+     * @param int                 $timeShift Legacy clock-skew offset in seconds
+     *                                       added to validated timestamps.
+     *                                       Prefer injecting a ClockInterface
+     *                                       for testable time; retained for BC.
+     * @param ClockInterface|null $clock     Clock used to read "now" at
+     *                                       construction. Defaults to the
+     *                                       system wall clock (time()).
      */
-    public function __construct(\Phalcon\Encryption\Security\JWT\Token\Token $token, int $timeShift = 0)
+    public function __construct(\Phalcon\Encryption\Security\JWT\Token\Token $token, int $timeShift = 0, ?\Phalcon\Time\Clock\ClockInterface $clock = null)
     {
     }
 
@@ -75,9 +84,9 @@ class Validator
      * @param string $claim
      * @param mixed  $value
      *
-     * @return Validator
+     * @return static
      */
-    public function set(string $claim, $value): Validator
+    public function set(string $claim, $value): static
     {
     }
 
@@ -86,9 +95,21 @@ class Validator
      *
      * @param Token $token
      *
-     * @return Validator
+     * @return static
      */
-    public function setToken(\Phalcon\Encryption\Security\JWT\Token\Token $token): Validator
+    public function setToken(\Phalcon\Encryption\Security\JWT\Token\Token $token): static
+    {
+    }
+
+    /**
+     * Validate a claim
+     *
+     * @param string          $name
+     * @param bool|int|string $value
+     *
+     * @return static
+     */
+    public function validateClaim(string $name, $value): static
     {
     }
 
@@ -97,10 +118,10 @@ class Validator
      *
      * @param string|array $audience
      *
-     * @return Validator
+     * @return static
      * @throws ValidatorException
      */
-    public function validateAudience($audience): Validator
+    public function validateAudience($audience): static
     {
     }
 
@@ -109,58 +130,63 @@ class Validator
      *
      * @param int $timestamp
      *
-     * @return Validator
-     * @throws ValidatorException
+     * @return static
      */
-    public function validateExpiration(int $timestamp): Validator
+    public function validateExpiration(int $timestamp): static
     {
     }
 
     /**
      * Validate the id of the token
      *
-     * @param string $id
+     * A null id expresses no expectation and is skipped.
      *
-     * @return Validator
-     * @throws ValidatorException
+     * @param string|null $id
+     *
+     * @return static
      */
-    public function validateId(string $id): Validator
+    public function validateId(?string $id = null): static
     {
     }
 
     /**
      * Validate the issued at (iat) of the token
      *
+     * A token issued at exactly $timestamp is valid. Only a token issued after
+     * it, i.e. in the future, is rejected.
+     *
      * @param int $timestamp
      *
-     * @return Validator
-     * @throws ValidatorException
+     * @return static
      */
-    public function validateIssuedAt(int $timestamp): Validator
+    public function validateIssuedAt(int $timestamp): static
     {
     }
 
     /**
      * Validate the issuer of the token
      *
-     * @param string $issuer
+     * A null issuer expresses no expectation and is skipped.
      *
-     * @return Validator
-     * @throws ValidatorException
+     * @param string|null $issuer
+     *
+     * @return static
      */
-    public function validateIssuer(string $issuer): Validator
+    public function validateIssuer(?string $issuer = null): static
     {
     }
 
     /**
      * Validate the notbefore (nbf) of the token
      *
+     * A token is valid at exactly $timestamp. Only a timestamp before the
+     * "nbf" claim is rejected.
+     *
      * @param int $timestamp
      *
-     * @return Validator
-     * @throws ValidatorException
+     * @return static
      */
-    public function validateNotBefore(int $timestamp): Validator
+    public function validateNotBefore(int $timestamp): static
     {
     }
 
@@ -170,10 +196,22 @@ class Validator
      * @param SignerInterface $signer
      * @param string          $passphrase
      *
-     * @return Validator
-     * @throws ValidatorException
+     * @return static
      */
-    public function validateSignature(\Phalcon\Encryption\Security\JWT\Signer\SignerInterface $signer, string $passphrase): Validator
+    public function validateSignature(\Phalcon\Encryption\Security\JWT\Signer\SignerInterface $signer, string $passphrase): static
+    {
+    }
+
+    /**
+     * Validate the subject of the token
+     *
+     * A null subject expresses no expectation and is skipped.
+     *
+     * @param string|null $subject
+     *
+     * @return static
+     */
+    public function validateSubject(?string $subject = null): static
     {
     }
 

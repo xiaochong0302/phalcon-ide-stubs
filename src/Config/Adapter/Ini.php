@@ -11,7 +11,8 @@ namespace Phalcon\Config\Adapter;
 
 use Phalcon\Config\Config;
 use Phalcon\Config\Exception;
-use Phalcon\Support\Traits\PhpFileTrait;
+use Phalcon\Config\Exceptions\CannotLoadConfigFile;
+use Phalcon\Traits\Php\IniTrait;
 
 /**
  * Reads ini files and converts them to Phalcon\Config\Config objects.
@@ -57,6 +58,10 @@ use Phalcon\Support\Traits\PhpFileTrait;
  */
 class Ini extends Config
 {
+    use \Phalcon\Traits\Php\IniTrait;
+
+
+
     /**
      * Ini constructor.
      *
@@ -72,6 +77,12 @@ class Ini extends Config
     /**
      * We have to cast values manually because parse_ini_file() has a poor
      * implementation.
+     *
+     * Note: this casting is an ini-format compensation and is deliberately
+     * specific to this adapter. Ini files carry untyped strings, so
+     * `on/yes/true`, `off/no/false`, `null` and numeric strings are decoded
+     * here. The json, yaml and php adapters receive natively typed values
+     * from their parsers and perform no casting.
      *
      * @param mixed $ini
      *
@@ -99,16 +110,6 @@ class Ini extends Config
      * @return array
      */
     protected function parseIniString(string $path, $value): array
-    {
-    }
-
-    /**
-     * @todo to be removed when we get traits
-     * @param string $filename
-     * @param bool $processSections
-     * @param int $scannerMode
-     */
-    protected function phpParseIniFile(string $filename, bool $processSections = false, int $scannerMode = 1)
     {
     }
 }

@@ -14,6 +14,7 @@ use Phalcon\Db\Column;
 use Phalcon\Db\ColumnInterface;
 use Phalcon\Db\Enum;
 use Phalcon\Db\Exception;
+use Phalcon\Db\Exceptions\MissingForeignKeyChecks;
 use Phalcon\Db\Index;
 use Phalcon\Db\IndexInterface;
 use Phalcon\Db\Reference;
@@ -70,10 +71,10 @@ class Mysql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ColumnInterface[]
      */
-    public function describeColumns(string $table, string $schema = null): array
+    public function describeColumns(string $table, ?string $schema = null): array
     {
     }
 
@@ -82,15 +83,15 @@ class Mysql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      *
      * ```php
      * print_r(
-     *     $connection->describeIndexes("robots_parts")
+     *     $connection->describeIndexes("co_orders_x_products")
      * );
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\IndexInterface[]
      */
-    public function describeIndexes(string $table, string $schema = null): array
+    public function describeIndexes(string $table, ?string $schema = null): array
     {
     }
 
@@ -99,15 +100,15 @@ class Mysql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      *
      * ```php
      * print_r(
-     *     $connection->describeReferences("robots_parts")
+     *     $connection->describeReferences("co_orders_x_products")
      * );
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ReferenceInterface[]
      */
-    public function describeReferences(string $table, string $schema = null): array
+    public function describeReferences(string $table, ?string $schema = null): array
     {
     }
 
@@ -117,6 +118,31 @@ class Mysql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * @return array
      */
     protected function getDsnDefaults(): array
+    {
+    }
+
+    /**
+     * Recognizes a MySQL "server has gone away" / "Lost connection" failure
+     * by the driver error code (2006 / 2013) with a message fallback.
+     *
+     * @param \Throwable $exception
+     * @return bool
+     */
+    protected function isConnectionError(\Throwable $exception): bool
+    {
+    }
+
+    /**
+     * Resolves a MariaDB `COLUMN_DEFAULT` literal to the value it represents.
+     *
+     * MariaDB quotes literal defaults to tell them apart from the expression
+     * defaults it has supported since 10.2. Expression defaults arrive
+     * unquoted, so an unmatched pair leaves the value untouched.
+     *
+     * @param string $value
+     * @return string
+     */
+    private function unquoteDefault(string $value): string
     {
     }
 }

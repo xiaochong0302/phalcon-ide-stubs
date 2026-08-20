@@ -9,8 +9,11 @@
  */
 namespace Phalcon\Translate\Adapter;
 
-use ArrayAccess;
+use Phalcon\Contracts\Translate\TranslateTypes;
+use Phalcon\Traits\Php\InfoTrait;
 use Phalcon\Translate\Exception;
+use Phalcon\Translate\Exceptions\MissingGettextExtension;
+use Phalcon\Translate\Exceptions\MissingRequiredParameter;
 use Phalcon\Translate\InterpolatorFactory;
 
 /**
@@ -29,47 +32,42 @@ use Phalcon\Translate\InterpolatorFactory;
  * );
  * ```
  *
- * Allows translate using gettext
+ * Allows translations using gettext
  *
- * @property int          $category
- * @property string       $defaultDomain
- * @property string|array $directory
- * @property string|false $locale
+ * @phpstan-import-type translate_data from TranslateTypes
+ * @phpstan-import-type translate_gettext_defaults from TranslateTypes
+ * @phpstan-import-type translate_gettext_options from TranslateTypes
+ * @phpstan-import-type translate_placeholders from TranslateTypes
  */
-class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \ArrayAccess
+class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter
 {
-    /**
-     * @var int
-     */
-    protected $category;
+    use \Phalcon\Traits\Php\InfoTrait;
+
+
+    protected int $category = 6;
+
+    protected string $defaultDomain = 'messages';
 
     /**
-     * @var string
-     */
-    protected $defaultDomain;
-
-    /**
-     * @var string|array
+     * @phpstan-var translate_data|string
      */
     protected $directory;
 
     /**
-     * @var string
+     * @var false|string
      */
     protected $locale;
 
     /**
      * Gettext constructor.
      *
-     * @param InterpolatorFactory $interpolator
-     * @param array               $options = [
-     *                                       'locale'        => '',
-     *                                       'defaultDomain' => '',
-     *                                       'directory'     => '',
-     *                                       'category'      => ''
-     *                                       ]
+     * @phpstan-param translate_gettext_options $options
      *
      * @throws Exception
+     * @throws MissingGettextExtension
+     * @throws MissingRequiredParameter
+     * @param \Phalcon\Translate\InterpolatorFactory $interpolator
+     * @param array $options
      */
     public function __construct(\Phalcon\Translate\InterpolatorFactory $interpolator, array $options)
     {
@@ -78,10 +76,9 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
     /**
      * Check whether is defined a translation key in the internal array
      *
-     * @param string $index
-     *
-     * @return bool
      * @deprecated
+     * @param string $index
+     * @return bool
      */
     public function exists(string $index): bool
     {
@@ -102,16 +99,17 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
     }
 
     /**
-     * @return string|array
+     * @phpstan-return translate_data|string
+     * @return array|string
      */
     public function getDirectory(): string|array
     {
     }
 
     /**
-     * @return string
+     * @return false|string
      */
-    public function getLocale(): string
+    public function getLocale(): false|string
     {
     }
 
@@ -119,7 +117,6 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
      * Check whether is defined a translation key in the internal array
      *
      * @param string $index
-     *
      * @return bool
      */
     public function has(string $index): bool
@@ -131,15 +128,15 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
      * Some languages have more than one form for plural messages dependent on
      * the count.
      *
-     * @param string      $msgid1
-     * @param string      $msgid2
-     * @param int         $count
-     * @param array       $placeholders
+     * @phpstan-param translate_placeholders $placeholders
+     * @param string $msgid1
+     * @param string $msgid2
+     * @param int $count
+     * @param array $placeholders
      * @param string|null $domain
-     *
      * @return string
      */
-    public function nquery(string $msgid1, string $msgid2, int $count, array $placeholders = [], string $domain = null): string
+    public function nquery(string $msgid1, string $msgid2, int $count, array $placeholders = [], ?string $domain = null): string
     {
     }
 
@@ -150,9 +147,11 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
      * $translator->query("你好 %name%！", ["name" => "Phalcon"]);
      * ```
      *
-     * @param string $translateKey
-     * @param array  $placeholders
+     * @phpstan-param translate_placeholders $placeholders
      *
+     * @throws Exception
+     * @param string $translateKey
+     * @param array $placeholders
      * @return string
      */
     public function query(string $translateKey, array $placeholders = []): string
@@ -194,7 +193,8 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
      * );
      * ```
      *
-     * @param string|array $directory
+     * @phpstan-param translate_data|string $directory
+     * @param mixed $directory
      * @return void
      */
     public function setDirectory($directory): void
@@ -205,36 +205,43 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
      * Changes the current domain (i.e. the translation file)
      *
      * @param string|null $domain
-     *
      * @return string
      */
-    public function setDomain(string $domain = null): string
+    public function setDomain(?string $domain = null): string
     {
     }
 
     /**
      * Sets locale information
      *
+     * Note: this method has process-global side effects. Besides calling
+     * `setlocale()`, it exports the `LC_ALL`, `LANG` and `LANGUAGE`
+     * environment variables via `putenv()`. `LC_ALL` affects every
+     * locale-sensitive operation in the process - `(string)` casts of floats,
+     * `strtoupper()`/`strtolower()` tables, date formatting and more - not
+     * just translations.
+     *
      * ```php
      * // Set locale to Dutch
-     * $gettext->setLocale(LC_ALL, "nl_NL");
+     * $gettext->setLocale(LC_ALL, ["nl_NL"]);
      *
      * // Try different possible locale names for German
-     * $gettext->setLocale(LC_ALL, "de_DE@euro", "de_DE", "de", "ge");
+     * $gettext->setLocale(LC_ALL, ["de_DE@euro", "de_DE", "de", "ge"]);
      * ```
      *
-     * @param int   $category
+     * @phpstan-param array<array-key, string> $localeArray
+     * @param int $category
      * @param array $localeArray
-     *
      * @return false|string
      */
-    public function setLocale(int $category, array $localeArray = []): bool|string
+    public function setLocale(int $category, array $localeArray = []): false|string
     {
     }
 
     /**
      * Gets default options
      *
+     * @phpstan-return translate_gettext_defaults
      * @return array
      */
     protected function getOptionsDefault(): array
@@ -244,21 +251,11 @@ class Gettext extends \Phalcon\Translate\Adapter\AbstractAdapter implements \Arr
     /**
      * Validator for constructor
      *
+     * @phpstan-param translate_gettext_options $options
      * @param array $options
-     *
-     * @throws Exception
      * @return void
      */
     protected function prepareOptions(array $options): void
-    {
-    }
-
-    /**
-     * @todo to be removed when we get traits
-     * @param string $name
-     * @return bool
-     */
-    protected function phpFunctionExists(string $name): bool
     {
     }
 }

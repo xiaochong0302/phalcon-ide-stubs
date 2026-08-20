@@ -12,11 +12,16 @@ namespace Phalcon\Mvc\Model\Resultset;
 use Phalcon\Di\Di;
 use Phalcon\Di\DiInterface;
 use Phalcon\Mvc\Model;
+use Phalcon\Mvc\Model\Eager\Loader;
 use Phalcon\Mvc\Model\Exception;
+use Phalcon\Mvc\Model\Exceptions\InvalidContainer;
+use Phalcon\Mvc\Model\Exceptions\InvalidSerializationData;
+use Phalcon\Mvc\Model\Exceptions\ResultsetColumnNotInMap;
 use Phalcon\Mvc\Model\Resultset;
 use Phalcon\Mvc\Model\Row;
 use Phalcon\Mvc\ModelInterface;
 use Phalcon\Storage\Serializer\SerializerInterface;
+use Phalcon\Support\Settings;
 
 /**
  * Phalcon\Mvc\Model\Resultset\Simple
@@ -33,6 +38,11 @@ class Simple extends Resultset
      * @var array|string
      */
     protected $columnMap;
+
+    /**
+     * @var array|null
+     */
+    protected $eagerMap = null;
 
     /**
      * @var ModelInterface|Row
@@ -58,11 +68,62 @@ class Simple extends Resultset
     }
 
     /**
+     * @return array
+     */
+    public function __serialize(): array
+    {
+    }
+
+    /**
+     * @param array $data
+     * @return void
+     */
+    public function __unserialize(array $data): void
+    {
+    }
+
+    /**
      * Returns current row in the resultset
      *
      * @return TValue
      */
-    final public function current(): ModelInterface|null
+    final public function current(): ModelInterface|Row|null
+    {
+    }
+
+    /**
+     * Serializing a resultset will dump all related rows into a big array
+     *
+     * @return string
+     */
+    public function serialize(): string
+    {
+    }
+
+    /**
+     * Attaches a pre-loaded relation map, applied to every record as it is
+     * hydrated.
+     *
+     * Records in a resultset are transient - seek() clears activeRow on every
+     * move and current() re-hydrates from the raw row - so hydration is the
+     * only durable point at which relations can be stamped.
+     *
+     * @param array $eagerMap
+     * @return void
+     */
+    public function setEagerMap(array $eagerMap): void
+    {
+    }
+
+    /**
+     * Builds a new resultset of the same concrete class over the rows at the
+     * given positions, preserving the column map, record prototype and
+     * snapshot behavior of this resultset.
+     *
+     * @param array $indexes zero-based row positions, in the desired order
+     * @return Simple
+     */
+    public function sliceRows(array $indexes): Simple
     {
     }
 
@@ -80,15 +141,6 @@ class Simple extends Resultset
     }
 
     /**
-     * Serializing a resultset will dump all related rows into a big array
-     *
-     * @return string
-     */
-    public function serialize(): string
-    {
-    }
-
-    /**
      * Unserializing a resultset will allow to only works on the rows present in
      * the saved state
      *
@@ -96,21 +148,6 @@ class Simple extends Resultset
      * @return void
      */
     public function unserialize($data): void
-    {
-    }
-
-    /**
-     * @return array
-     */
-    public function __serialize(): array
-    {
-    }
-
-    /**
-     * @param array $data
-     * @return void
-     */
-    public function __unserialize(array $data): void
     {
     }
 }

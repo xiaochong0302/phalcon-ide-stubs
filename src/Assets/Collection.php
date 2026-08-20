@@ -12,21 +12,24 @@ namespace Phalcon\Assets;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use Phalcon\Assets\Traits\AttributesTrait;
+use Phalcon\Assets\Traits\SourceTargetTrait;
+use Phalcon\Traits\Php\FileTrait;
 
 /**
  * Collection of asset objects
  */
 class Collection implements \Countable, \IteratorAggregate
 {
-    /**
-     * @var array
-     */
-    protected $assets = [];
+    use \Phalcon\Assets\Traits\AttributesTrait;
+    use \Phalcon\Traits\Php\FileTrait;
+    use \Phalcon\Assets\Traits\SourceTargetTrait;
+
 
     /**
      * @var array
      */
-    protected $attributes = [];
+    protected $assets = [];
 
     /**
      * Should version be determined from file modification time
@@ -48,11 +51,6 @@ class Collection implements \Countable, \IteratorAggregate
     /**
      * @var bool
      */
-    protected $isLocal = true;
-
-    /**
-     * @var bool
-     */
     protected $join = true;
 
     /**
@@ -61,24 +59,9 @@ class Collection implements \Countable, \IteratorAggregate
     protected $prefix = '';
 
     /**
-     * @var string
-     */
-    protected $sourcePath = '';
-
-    /**
      * @var bool
      */
     protected $targetIsLocal = true;
-
-    /**
-     * @var string
-     */
-    protected $targetPath = '';
-
-    /**
-     * @var string
-     */
-    protected $targetUri = '';
 
     /**
      * @var string
@@ -89,9 +72,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Adds an asset to the collection
      *
      * @param AssetInterface $asset
-     * @return Collection
+     * @return static
      */
-    public function add(AssetInterface $asset): Collection
+    public function add(AssetInterface $asset): static
     {
     }
 
@@ -104,9 +87,9 @@ class Collection implements \Countable, \IteratorAggregate
      * @param array       $attributes
      * @param string|null $version
      * @param bool        $autoVersion
-     * @return Collection
+     * @return static
      */
-    public function addCss(string $path, $isLocal = null, bool $filter = true, array $attributes = [], string $version = null, bool $autoVersion = false): Collection
+    public function addCss(string $path, $isLocal = null, bool $filter = true, array $attributes = [], ?string $version = null, bool $autoVersion = false): static
     {
     }
 
@@ -114,9 +97,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Adds a filter to the collection
      *
      * @param FilterInterface $filter
-     * @return Collection
+     * @return static
      */
-    public function addFilter(FilterInterface $filter): Collection
+    public function addFilter(FilterInterface $filter): static
     {
     }
 
@@ -124,9 +107,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Adds an inline code to the collection
      *
      * @param Inline $code
-     * @return Collection
+     * @return static
      */
-    public function addInline(Inline $code): Collection
+    public function addInline(Inline $code): static
     {
     }
 
@@ -136,9 +119,9 @@ class Collection implements \Countable, \IteratorAggregate
      * @param string $content
      * @param bool   $filter
      * @param array  $attributes
-     * @return Collection
+     * @return static
      */
-    public function addInlineCss(string $content, bool $filter = true, array $attributes = []): Collection
+    public function addInlineCss(string $content, bool $filter = true, array $attributes = []): static
     {
     }
 
@@ -148,9 +131,9 @@ class Collection implements \Countable, \IteratorAggregate
      * @param string $content
      * @param bool   $filter
      * @param array  $attributes
-     * @return Collection
+     * @return static
      */
-    public function addInlineJs(string $content, bool $filter = true, array $attributes = []): Collection
+    public function addInlineJs(string $content, bool $filter = true, array $attributes = []): static
     {
     }
 
@@ -163,9 +146,9 @@ class Collection implements \Countable, \IteratorAggregate
      * @param array       $attributes
      * @param string|null $version
      * @param bool        $autoVersion
-     * @return Collection
+     * @return static
      */
-    public function addJs(string $path, $isLocal = null, bool $filter = true, array $attributes = [], string $version = null, bool $autoVersion = false): Collection
+    public function addJs(string $path, $isLocal = null, bool $filter = true, array $attributes = [], ?string $version = null, bool $autoVersion = false): static
     {
     }
 
@@ -181,6 +164,8 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
+     * Return the stored assets
+     *
      * @return array
      */
     public function getAssets(): array
@@ -188,13 +173,8 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
-     * @return array
-     */
-    public function getAttributes(): array
-    {
-    }
-
-    /**
+     * Return the stored codes
+     *
      * @return array
      */
     public function getCodes(): array
@@ -202,6 +182,8 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
+     * Return the stored filters
+     *
      * @return array
      */
     public function getFilters(): array
@@ -226,6 +208,8 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
+     * Returns the prefix
+     *
      * @return string
      */
     public function getPrefix(): string
@@ -245,13 +229,8 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
-     * @return string
-     */
-    public function getSourcePath(): string
-    {
-    }
-
-    /**
+     * Returns whether the target is local or not
+     *
      * @return bool
      */
     public function getTargetIsLocal(): bool
@@ -259,20 +238,8 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
-     * @return string
-     */
-    public function getTargetPath(): string
-    {
-    }
-
-    /**
-     * @return string
-     */
-    public function getTargetUri(): string
-    {
-    }
-
-    /**
+     * Returns the version
+     *
      * @return string
      */
     public function getVersion(): string
@@ -312,21 +279,14 @@ class Collection implements \Countable, \IteratorAggregate
     }
 
     /**
-     * @return bool
-     */
-    public function isLocal(): bool
-    {
-    }
-
-    /**
      * Sets if all filtered assets in the collection must be joined in a single
      * result file
      *
      * @param bool $flag
      *
-     * @return Collection
+     * @return static
      */
-    public function join(bool $flag): Collection
+    public function join(bool $flag): static
     {
     }
 
@@ -334,17 +294,17 @@ class Collection implements \Countable, \IteratorAggregate
      * Sets extra HTML attributes
      *
      * @param array $attributes
-     * @return Collection
+     * @return static
      */
-    public function setAttributes(array $attributes): Collection
+    public function setAttributes(array $attributes): static
     {
     }
 
     /**
      * @param bool $flag
-     * @return Collection
+     * @return static
      */
-    public function setAutoVersion(bool $flag): Collection
+    public function setAutoVersion(bool $flag): static
     {
     }
 
@@ -352,19 +312,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Sets an array of filters in the collection
      *
      * @param array $filters
-     * @return Collection
+     * @return static
      */
-    public function setFilters(array $filters): Collection
-    {
-    }
-
-    /**
-     * Sets if the collection uses local assets by default
-     *
-     * @param bool $flag
-     * @return Collection
-     */
-    public function setIsLocal(bool $flag): Collection
+    public function setFilters(array $filters): static
     {
     }
 
@@ -372,9 +322,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Sets a common prefix for all the assets
      *
      * @param string $prefix
-     * @return Collection
+     * @return static
      */
-    public function setPrefix(string $prefix): Collection
+    public function setPrefix(string $prefix): static
     {
     }
 
@@ -382,39 +332,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Sets if the target local or not
      *
      * @param bool $flag
-     * @return Collection
+     * @return static
      */
-    public function setTargetIsLocal(bool $flag): Collection
-    {
-    }
-
-    /**
-     * Sets the target path of the file for the filtered/join output
-     *
-     * @param string $targetPath
-     * @return Collection
-     */
-    public function setTargetPath(string $targetPath): Collection
-    {
-    }
-
-    /**
-     * Sets a target uri for the generated HTML
-     *
-     * @param string $targetUri
-     * @return Collection
-     */
-    public function setTargetUri(string $targetUri): Collection
-    {
-    }
-
-    /**
-     * Sets a base source path for all the assets in this collection
-     *
-     * @param string $sourcePath
-     * @return Collection
-     */
-    public function setSourcePath(string $sourcePath): Collection
+    public function setTargetIsLocal(bool $flag): static
     {
     }
 
@@ -422,9 +342,9 @@ class Collection implements \Countable, \IteratorAggregate
      * Sets the version
      *
      * @param string $version
-     * @return Collection
+     * @return static
      */
-    public function setVersion(string $version): Collection
+    public function setVersion(string $version): static
     {
     }
 
@@ -447,11 +367,11 @@ class Collection implements \Countable, \IteratorAggregate
      * @param mixed $isLocal
      * @param bool $filter
      * @param array $attributes
-     * @param string $version
+     * @param string|null $version
      * @param bool $autoVersion
-     * @return Collection
+     * @return static
      */
-    private function processAdd(string $className, string $path, $isLocal = null, bool $filter = true, array $attributes = [], string $version = null, bool $autoVersion = false): Collection
+    private function processAdd(string $className, string $path, $isLocal = null, bool $filter = true, array $attributes = [], ?string $version = null, bool $autoVersion = false): static
     {
     }
 
@@ -462,9 +382,9 @@ class Collection implements \Countable, \IteratorAggregate
      * @param string $content
      * @param bool $filter
      * @param array $attributes
-     * @return Collection
+     * @return static
      */
-    private function processAddInline(string $className, string $content, bool $filter = true, array $attributes = []): Collection
+    private function processAddInline(string $className, string $content, bool $filter = true, array $attributes = []): static
     {
     }
 

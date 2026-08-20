@@ -180,33 +180,6 @@ interface CriteriaInterface
     public function having($having): CriteriaInterface;
 
     /**
-     * Adds an INNER join to the query
-     *
-     * ```php
-     * $criteria->innerJoin(
-     *     Robots::class
-     * );
-     *
-     * $criteria->innerJoin(
-     *     Robots::class,
-     *     "r.id = RobotsParts.robots_id"
-     * );
-     *
-     * $criteria->innerJoin(
-     *     Robots::class,
-     *     "r.id = RobotsParts.robots_id",
-     *     "r"
-     * );
-     * ```
-     *
-     * @param string $model
-     * @param mixed $conditions
-     * @param mixed $alias
-     * @return CriteriaInterface
-     */
-    public function innerJoin(string $model, $conditions = null, $alias = null): CriteriaInterface;
-
-    /**
      * Appends an IN condition to the current conditions
      *
      * ```php
@@ -220,12 +193,39 @@ interface CriteriaInterface
     public function inWhere(string $expr, array $values): CriteriaInterface;
 
     /**
+     * Adds an INNER join to the query
+     *
+     * ```php
+     * $criteria->innerJoin(
+     *     Orders::class
+     * );
+     *
+     * $criteria->innerJoin(
+     *     Orders::class,
+     *     "r.ord_id = OrdersProducts.oxp_ord_id"
+     * );
+     *
+     * $criteria->innerJoin(
+     *     Orders::class,
+     *     "r.ord_id = OrdersProducts.oxp_ord_id",
+     *     "r"
+     * );
+     * ```
+     *
+     * @param string $model
+     * @param mixed $conditions
+     * @param mixed $alias
+     * @return CriteriaInterface
+     */
+    public function innerJoin(string $model, $conditions = null, $alias = null): CriteriaInterface;
+
+    /**
      * Adds a LEFT join to the query
      *
      * ```php
      * $criteria->leftJoin(
-     *     Robots::class,
-     *     "r.id = RobotsParts.robots_id",
+     *     Orders::class,
+     *     "r.ord_id = OrdersProducts.oxp_ord_id",
      *     "r"
      * );
      * ```
@@ -274,14 +274,6 @@ interface CriteriaInterface
     public function notInWhere(string $expr, array $values): CriteriaInterface;
 
     /**
-     * Adds the order-by parameter to the criteria
-     *
-     * @param string $orderColumns
-     * @return CriteriaInterface
-     */
-    public function orderBy(string $orderColumns): CriteriaInterface;
-
-    /**
      * Appends a condition to the current conditions using an OR operator
      *
      * @param array $bindParams
@@ -292,12 +284,20 @@ interface CriteriaInterface
     public function orWhere(string $conditions, $bindParams = null, $bindTypes = null): CriteriaInterface;
 
     /**
+     * Adds the order-by parameter to the criteria
+     *
+     * @param string $orderColumns
+     * @return CriteriaInterface
+     */
+    public function orderBy(string $orderColumns): CriteriaInterface;
+
+    /**
      * Adds a RIGHT join to the query
      *
      * ```php
      * $criteria->rightJoin(
-     *     Robots::class,
-     *     "r.id = RobotsParts.robots_id",
+     *     Orders::class,
+     *     "r.ord_id = OrdersProducts.oxp_ord_id",
      *     "r"
      * );
      * ```

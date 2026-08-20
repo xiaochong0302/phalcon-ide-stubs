@@ -15,12 +15,11 @@ namespace Phalcon\Support\Helper\Str;
 class KebabCase extends \Phalcon\Support\Helper\Str\PascalCase
 {
     /**
-     * @param string      $text
+     * @param string $text
      * @param string|null $delimiters
-     *
      * @return string
      */
-    public function __invoke(string $text, string $delimiters = null): string
+    public function __invoke(string $text, ?string $delimiters = null): string
     {
     }
 }

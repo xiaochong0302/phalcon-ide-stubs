@@ -22,10 +22,37 @@ class Script extends \Phalcon\Html\Helper\AbstractSeries
      * @param string $url
      * @param array  $attributes
      *
-     * @return $this
+     * @return static
      * @throws Exception
+     * @param int $position
      */
-    public function add(string $url, array $attributes = [])
+    public function add(string $url, array $attributes = [], int $position = -1): static
+    {
+    }
+
+    /**
+     * Begins capturing inline script content via output buffering. Pair
+     * with `endInternal()` to close the buffer and append the captured
+     * markup as a `<script>...</script>` block in the asset stack.
+     *
+     * @return void
+     */
+    public function beginInternal(): void
+    {
+    }
+
+    /**
+     * Closes an inline-script buffer opened by `beginInternal()` and adds
+     * the captured content as a `<script>...</script>` entry. Any
+     * attributes supplied are placed on the wrapping tag. The script body
+     * is treated as raw HTML (it is JavaScript, not user-supplied text).
+     *
+     * @param array $attributes
+     * @param int   $position
+     *
+     * @return static
+     */
+    public function endInternal(array $attributes = [], int $position = -1): static
     {
     }
 

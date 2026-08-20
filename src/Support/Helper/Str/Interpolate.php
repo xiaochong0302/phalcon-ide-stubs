@@ -9,6 +9,8 @@
  */
 namespace Phalcon\Support\Helper\Str;
 
+use Phalcon\Traits\Support\Helper\Str\InterpolateTrait;
+
 /**
  * Interpolates context values into the message placeholders. By default, the
  * right and left tokens are `%`
@@ -17,9 +19,13 @@ namespace Phalcon\Support\Helper\Str;
  */
 class Interpolate
 {
+    use \Phalcon\Traits\Support\Helper\Str\InterpolateTrait;
+
+
+
     /**
+     * @param string[] $context
      * @param string $message
-     * @param array  $context
      * @param string $leftToken
      * @param string $rightToken
      * @return string

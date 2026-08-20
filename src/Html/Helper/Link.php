@@ -19,15 +19,10 @@ class Link extends \Phalcon\Html\Helper\Style
      *
      * @param string $url
      * @param array  $attributes
+     * @param int $position
+     * @return static
      */
-    public function add(string $url, array $attributes = [])
-    {
-    }
-
-    /**
-     * @return string
-     */
-    protected function getTag(): string
+    public function add(string $url, array $attributes = [], int $position = -1): static
     {
     }
 
@@ -40,6 +35,13 @@ class Link extends \Phalcon\Html\Helper\Style
      * @return array
      */
     protected function getAttributes(string $url, array $attributes): array
+    {
+    }
+
+    /**
+     * @return string
+     */
+    protected function getTag(): string
     {
     }
 }

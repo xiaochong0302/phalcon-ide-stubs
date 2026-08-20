@@ -14,6 +14,7 @@ use Phalcon\Db\Column;
 use Phalcon\Db\ColumnInterface;
 use Phalcon\Db\Enum;
 use Phalcon\Db\Exception;
+use Phalcon\Db\Exceptions\TableMustHaveColumn;
 use Phalcon\Db\RawValue;
 use Phalcon\Db\Reference;
 use Phalcon\Db\ReferenceInterface;
@@ -90,10 +91,10 @@ class Postgresql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ColumnInterface[]
      */
-    public function describeColumns(string $table, string $schema = null): array
+    public function describeColumns(string $table, ?string $schema = null): array
     {
     }
 
@@ -102,15 +103,15 @@ class Postgresql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      *
      * ```php
      * print_r(
-     *     $connection->describeReferences("robots_parts")
+     *     $connection->describeReferences("co_orders_x_products")
      * );
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ReferenceInterface[]
      */
-    public function describeReferences(string $table, string $schema = null): array
+    public function describeReferences(string $table, ?string $schema = null): array
     {
     }
 
@@ -118,18 +119,18 @@ class Postgresql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * Returns the default identity value to be inserted in an identity column
      *
      * ```php
-     * // Inserting a new robot with a valid default value for the column 'id'
+     * // Inserting a new invoice with a valid default value for the column 'inv_id'
      * $success = $connection->insert(
-     *     "robots",
+     *     "co_invoices",
      *     [
      *         $connection->getDefaultIdValue(),
-     *         "Astro Boy",
-     *         1952,
+     *         "Test Invoice",
+     *         100,
      *     ],
      *     [
-     *         "id",
-     *         "name",
-     *         "year",
+     *         "inv_id",
+     *         "inv_title",
+     *         "inv_total",
      *     ]
      * );
      * ```
@@ -146,10 +147,10 @@ class Postgresql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * @param string $tableName
      * @param string $schemaName
      * @param \Phalcon\Db\ColumnInterface $column
-     * @param \Phalcon\Db\ColumnInterface $currentColumn
+     * @param \Phalcon\Db\ColumnInterface|null $currentColumn
      * @return bool
      */
-    public function modifyColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column, \Phalcon\Db\ColumnInterface $currentColumn = null): bool
+    public function modifyColumn(string $tableName, string $schemaName, \Phalcon\Db\ColumnInterface $column, ?\Phalcon\Db\ColumnInterface $currentColumn = null): bool
     {
     }
 
@@ -179,6 +180,18 @@ class Postgresql extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * @return array
      */
     protected function getDsnDefaults(): array
+    {
+    }
+
+    /**
+     * Recognizes a PostgreSQL connection-loss failure by SQLSTATE
+     * (connection exception class 08, or admin/crash shutdown 57P0x) with a
+     * message fallback.
+     *
+     * @param \Throwable $exception
+     * @return bool
+     */
+    protected function isConnectionError(\Throwable $exception): bool
     {
     }
 }

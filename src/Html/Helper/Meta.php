@@ -21,42 +21,46 @@ class Meta extends \Phalcon\Html\Helper\AbstractSeries
      *
      * @param array $attributes
      *
-     * @return Meta
+     * @return static
+     * @param int $position
      */
-    public function add(array $attributes = []): Meta
+    public function add(array $attributes = [], int $position = -1): static
     {
     }
 
     /**
      * @param string $httpEquiv
      * @param string $content
+     * @param int    $position
      *
-     * @return Meta
+     * @return static
      * @throws Exception
      */
-    public function addHttp(string $httpEquiv, string $content): Meta
+    public function addHttp(string $httpEquiv, string $content, int $position = -1): static
     {
     }
 
     /**
      * @param string $name
      * @param string $content
+     * @param int    $position
      *
-     * @return Meta
+     * @return static
      * @throws Exception
      */
-    public function addName(string $name, string $content): Meta
+    public function addName(string $name, string $content, int $position = -1): static
     {
     }
 
     /**
      * @param string $name
      * @param string $content
+     * @param int    $position
      *
-     * @return Meta
+     * @return static
      * @throws Exception
      */
-    public function addProperty(string $name, string $content): Meta
+    public function addProperty(string $name, string $content, int $position = -1): static
     {
     }
 
@@ -71,11 +75,12 @@ class Meta extends \Phalcon\Html\Helper\AbstractSeries
      * @param string $element
      * @param string $value
      * @param string $content
+     * @param int    $position
      *
-     * @return Meta
+     * @return static
      * @throws Exception
      */
-    private function addElement(string $element, string $value, string $content): Meta
+    private function addElement(string $element, string $value, string $content, int $position = -1): static
     {
     }
 }

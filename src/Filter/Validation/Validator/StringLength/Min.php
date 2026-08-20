@@ -13,11 +13,17 @@ use Phalcon\Messages\Message;
 use Phalcon\Filter\Validation;
 use Phalcon\Filter\Validation\AbstractValidator;
 use Phalcon\Filter\Validation\Exception;
+use Phalcon\Traits\Php\InfoTrait;
 
 /**
  * Validates that a string has the specified minimum constraints
  * The test is passed if for a string's length L, min<=L, i.e. L must
  * be at least min.
+ *
+ * The "included" option is true by default. Set the option to false
+ * for min<L, i.e. L must be more than min. The "includedMinimum" option
+ * is an alias of "included". If you set the two options, "included" has
+ * precedence.
  *
  * ```php
  * use Phalcon\Filter\Validation;
@@ -31,7 +37,7 @@ use Phalcon\Filter\Validation\Exception;
  *         [
  *             "min"     => 2,
  *             "message" => "We want more than just their initials",
- *             "included" => true
+ *             "included" => false
  *         ]
  *     )
  * );
@@ -62,6 +68,9 @@ use Phalcon\Filter\Validation\Exception;
  */
 class Min extends AbstractValidator
 {
+    use \Phalcon\Traits\Php\InfoTrait;
+
+
     protected $template = 'Field :field must be at least :min characters long';
 
     /**
@@ -72,7 +81,8 @@ class Min extends AbstractValidator
      *     'template' => '',
      *     'allowEmpty' => false,
      *     'min' => 1000,
-     *     'included' => false
+     *     'included' => true,
+     *     'includedMinimum' => true
      * ]
      */
     public function __construct(array $options = [])

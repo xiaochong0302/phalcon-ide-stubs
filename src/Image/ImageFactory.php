@@ -9,22 +9,32 @@
  */
 namespace Phalcon\Image;
 
+use Exception as BaseException;
+use Phalcon\Config\ConfigInterface;
+use Phalcon\Contracts\Image\ImageTypes;
 use Phalcon\Factory\AbstractFactory;
 use Phalcon\Image\Adapter\AdapterInterface;
+use Phalcon\Image\Adapter\Gd;
+use Phalcon\Image\Adapter\Imagick;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
+use Throwable;
 
 /**
- * This file is part of the Phalcon Framework.
+ * Factory to create adapters for image manipulation
  *
- * (c) Phalcon Team <team@phalcon.io>
- *
- * For the full copyright and license information, please view the LICENSE.txt
- * file that was distributed with this source code.
+ * @phpstan-import-type image_factory_config from ImageTypes
+ * @phpstan-import-type image_factory_services from ImageTypes
  */
 class ImageFactory extends AbstractFactory
 {
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
+
     /**
      * Constructor
      *
+     * @phpstan-param image_factory_services $services
      * @param array $services
      */
     public function __construct(array $services = [])
@@ -34,7 +44,9 @@ class ImageFactory extends AbstractFactory
     /**
      * Factory to create an instance from a Config object
      *
-     * @param array|\Phalcon\Config\Config $config = [
+     * @phpstan-param ConfigInterface|image_factory_config $config
+     *
+     * @param array|ConfigInterface $config = [
      *     'adapter' => 'gd',
      *     'file' => 'image.jpg',
      *     'height' => null,
@@ -49,18 +61,19 @@ class ImageFactory extends AbstractFactory
     /**
      * Creates a new instance
      *
+     * @throws BaseException
      * @param string $name
      * @param string $file
-     * @param int $width
-     * @param int $height
+     * @param int|null $width
+     * @param int|null $height
      * @return AdapterInterface
      */
-    public function newInstance(string $name, string $file, int $width = null, int $height = null): AdapterInterface
+    public function newInstance(string $name, string $file, ?int $width = null, ?int $height = null): AdapterInterface
     {
     }
 
     /**
-     * @return string
+     * @return class-string<Throwable>
      */
     protected function getExceptionClass(): string
     {
@@ -69,20 +82,11 @@ class ImageFactory extends AbstractFactory
     /**
      * Returns the available adapters
      *
+     * @phpstan-return image_factory_services
+     *
      * @return string[]
      */
     protected function getServices(): array
-    {
-    }
-
-    /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @return mixed
-     */
-    private function getArrVal(array $collection, $index, $defaultValue = null): mixed
     {
     }
 }

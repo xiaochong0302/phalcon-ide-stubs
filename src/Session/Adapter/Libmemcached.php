@@ -9,10 +9,14 @@
  */
 namespace Phalcon\Session\Adapter;
 
+use Exception;
+use Phalcon\Contracts\Session\SessionTypes;
 use Phalcon\Storage\AdapterFactory;
 
 /**
  * Phalcon\Session\Adapter\Libmemcached
+ *
+ * @phpstan-import-type session_libmemcached_options from SessionTypes
  */
 class Libmemcached extends \Phalcon\Session\Adapter\AbstractAdapter
 {
@@ -32,8 +36,13 @@ class Libmemcached extends \Phalcon\Session\Adapter\AbstractAdapter
      *     'defaultSerializer' => 'Php',
      *     'lifetime' => 3600,
      *     'serializer' => null,
-     *     'prefix' => 'sess-memc-'
+     *     'prefix' => 'sess-memc-',
+     *     'stripPrefix' => false
      * ]
+     *
+     * @phpstan-param session_libmemcached_options $options
+     *
+     * @throws Exception
      */
     public function __construct(\Phalcon\Storage\AdapterFactory $factory, array $options = [])
     {

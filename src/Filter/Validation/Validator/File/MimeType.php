@@ -9,9 +9,11 @@
  */
 namespace Phalcon\Filter\Validation\Validator\File;
 
-use Phalcon\Messages\Message;
 use Phalcon\Filter\Validation;
 use Phalcon\Filter\Validation\Exception;
+use Phalcon\Filter\Validation\Exceptions\InvalidAllowedTypes;
+use Phalcon\Messages\Message;
+use Phalcon\Traits\Php\InfoTrait;
 
 /**
  * Checks if a value has a correct file mime type
@@ -63,6 +65,9 @@ use Phalcon\Filter\Validation\Exception;
  */
 class MimeType extends \Phalcon\Filter\Validation\Validator\File\AbstractFile
 {
+    use \Phalcon\Traits\Php\InfoTrait;
+
+
     protected $template = 'File :field must be of type: :types';
 
     /**

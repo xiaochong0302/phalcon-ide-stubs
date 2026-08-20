@@ -9,12 +9,13 @@
  */
 namespace Phalcon\Http\Response;
 
+use Phalcon\Contracts\Http\HttpTypes;
 use Phalcon\Http\Cookie\CookieInterface;
 
 /**
- * Phalcon\Http\Response\CookiesInterface
- *
  * Interface for Phalcon\Http\Response\Cookies
+ *
+ * @phpstan-import-type http_cookie_options from HttpTypes
  */
 interface CookiesInterface
 {
@@ -67,6 +68,7 @@ interface CookiesInterface
     /**
      * Sets a cookie to be sent at the end of the request
      *
+     * @phpstan-param http_cookie_options $options
      * @param string $name
      * @param mixed $value
      * @param int $expire

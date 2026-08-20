@@ -23,19 +23,19 @@ interface ResultsetInterface
     /**
      * Deletes every record in the resultset
      *
-     * @param \Closure $conditionCallback
+     * @param \Closure|null $conditionCallback
      * @return bool
      */
-    public function delete(\Closure $conditionCallback = null): bool;
+    public function delete(?\Closure $conditionCallback = null): bool;
 
     /**
      * Filters a resultset returning only those the developer requires
      *
      * ```php
-     * $filtered = $robots->filter(
-     *     function ($robot) {
-     *         if ($robot->id < 3) {
-     *             return $robot;
+     * $filtered = $invoices->filter(
+     *     function ($invoice) {
+     *         if ($invoice->inv_id < 3) {
+     *             return $invoice;
      *         }
      *     }
      * );
@@ -123,8 +123,8 @@ interface ResultsetInterface
      * Updates every record in the resultset
      *
      * @param array $data
-     * @param \Closure $conditionCallback
+     * @param \Closure|null $conditionCallback
      * @return bool
      */
-    public function update($data, \Closure $conditionCallback = null): bool;
+    public function update($data, ?\Closure $conditionCallback = null): bool;
 }

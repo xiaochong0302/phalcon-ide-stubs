@@ -9,11 +9,14 @@
  */
 namespace Phalcon\Cli;
 
-use Phalcon\Di\DiInterface;
-use Phalcon\Di\AbstractInjectionAware;
-use Phalcon\Cli\Router\Route;
 use Phalcon\Cli\Router\Exception;
+use Phalcon\Cli\Router\Exceptions\BeforeMatchNotCallable;
+use Phalcon\Cli\Router\Exceptions\RouterArgumentsInvalidType;
+use Phalcon\Cli\Router\Route;
 use Phalcon\Cli\Router\RouteInterface;
+use Phalcon\Contracts\Cli\CliTypes;
+use Phalcon\Di\AbstractInjectionAware;
+use Phalcon\Di\DiInterface;
 
 /**
  * Phalcon\Cli\Router is the standard framework router. Routing is the process
@@ -34,68 +37,48 @@ use Phalcon\Cli\Router\RouteInterface;
  *
  * echo $router->getTaskName();
  * ```
+ *
+ * @phpstan-import-type cli_parameters from CliTypes
+ * @phpstan-import-type cli_router_defaults from CliTypes
+ * @phpstan-import-type cli_routes from CliTypes
  */
-class Router extends AbstractInjectionAware
+class Router extends AbstractInjectionAware implements \Phalcon\Cli\RouterInterface
 {
-    /**
-     * @var string
-     */
-    protected $action = '';
+    protected string $action = '';
+
+    protected string $defaultAction = '';
+
+    protected string $defaultModule = '';
 
     /**
-     * @var string
+     * @phpstan-var cli_parameters
      */
-    protected $defaultAction = '';
+    protected array $defaultParams = [];
+
+    protected string $defaultTask = '';
+
+    protected ?\Phalcon\Cli\Router\RouteInterface $matchedRoute = null;
 
     /**
-     * @var string
+     * @var array<array-key, string>
      */
-    protected $defaultModule = '';
+    protected array $matches = [];
+
+    protected string $module = '';
 
     /**
-     * @var array
+     * @phpstan-var cli_parameters
      */
-    protected $defaultParams = [];
+    protected array $params = [];
 
     /**
-     * @var string
+     * @phpstan-var cli_routes
      */
-    protected $defaultTask = '';
+    protected array $routes = [];
 
-    /**
-     * @var RouteInterface|null
-     */
-    protected $matchedRoute = null;
+    protected string $task = '';
 
-    /**
-     * @var array
-     */
-    protected $matches = [];
-
-    /**
-     * @var string
-     */
-    protected $module = '';
-
-    /**
-     * @var array
-     */
-    protected $params = [];
-
-    /**
-     * @var array
-     */
-    protected $routes = [];
-
-    /**
-     * @var string
-     */
-    protected $task = '';
-
-    /**
-     * @var bool
-     */
-    protected $wasMatched = false;
+    protected bool $wasMatched = false;
 
     /**
      * Phalcon\Cli\Router constructor
@@ -113,8 +96,9 @@ class Router extends AbstractInjectionAware
      * $router->add("/about", "About::main");
      * ```
      *
-     * @param string|array $paths
+     * @phpstan-param mixed $paths
      * @param string $pattern
+     * @param mixed $paths
      * @return RouteInterface
      */
     public function add(string $pattern, $paths = null): RouteInterface
@@ -142,7 +126,7 @@ class Router extends AbstractInjectionAware
     /**
      * Returns the sub expressions in the regular expression matched
      *
-     * @return array
+     * @return array<array-key, string>
      */
     public function getMatches(): array
     {
@@ -160,16 +144,7 @@ class Router extends AbstractInjectionAware
     /**
      * Returns processed extra params
      *
-     * @todo deprecate this in future versions
-     * @return array
-     */
-    public function getParams(): array
-    {
-    }
-
-    /**
-     * Returns processed extra params
-     *
+     * @phpstan-return cli_parameters
      * @return array
      */
     public function getParameters(): array
@@ -177,9 +152,21 @@ class Router extends AbstractInjectionAware
     }
 
     /**
+     * Returns processed extra params
+     *
+     * @deprecated Use {@see getParameters()} instead.
+     *
+     * @phpstan-return cli_parameters
+     * @return array
+     */
+    public function getParams(): array
+    {
+    }
+
+    /**
      * Returns a route object by its id
      *
-     * @param int $id
+     * @param mixed $id
      * @return bool|RouteInterface
      */
     public function getRouteById($id): RouteInterface|bool
@@ -199,6 +186,7 @@ class Router extends AbstractInjectionAware
     /**
      * Returns all the routes defined in the router
      *
+     * @phpstan-return cli_routes
      * @return array|\Phalcon\Cli\Router\Route[]
      */
     public function getRoutes(): array
@@ -217,7 +205,8 @@ class Router extends AbstractInjectionAware
     /**
      * Handles routing information received from command-line arguments
      *
-     * @param array $arguments
+     * @phpstan-param mixed $arguments
+     * @param mixed $arguments
      */
     public function handle($arguments = null)
     {
@@ -227,9 +216,9 @@ class Router extends AbstractInjectionAware
      * Sets the default action name
      *
      * @param string $actionName
-     * @return Router
+     * @return static
      */
-    public function setDefaultAction(string $actionName): Router
+    public function setDefaultAction(string $actionName): static
     {
     }
 
@@ -237,9 +226,9 @@ class Router extends AbstractInjectionAware
      * Sets the name of the default module
      *
      * @param string $moduleName
-     * @return Router
+     * @return static
      */
-    public function setDefaultModule(string $moduleName): Router
+    public function setDefaultModule(string $moduleName): static
     {
     }
 
@@ -257,10 +246,11 @@ class Router extends AbstractInjectionAware
      * );
      * ```
      *
+     * @phpstan-param cli_router_defaults $defaults
      * @param array $defaults
-     * @return Router
+     * @return static
      */
-    public function setDefaults(array $defaults): Router
+    public function setDefaults(array $defaults): static
     {
     }
 
@@ -268,9 +258,9 @@ class Router extends AbstractInjectionAware
      * Sets the default controller name
      *
      * @param string $taskName
-     * @return void
+     * @return static
      */
-    public function setDefaultTask(string $taskName): void
+    public function setDefaultTask(string $taskName): static
     {
     }
 

@@ -10,14 +10,21 @@
 namespace Phalcon\Annotations;
 
 use Phalcon\Annotations\Adapter\AdapterInterface;
+use Phalcon\Annotations\Adapter\Apcu;
+use Phalcon\Annotations\Adapter\Memory;
+use Phalcon\Annotations\Adapter\Stream;
 use Phalcon\Factory\AbstractFactory;
-use Phalcon\Support\Helper\Arr\Get;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
 
 /**
  * Factory to create annotations components
  */
 class AnnotationsFactory extends AbstractFactory
 {
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+
+
+
     /**
      * AdapterFactory constructor.
      *

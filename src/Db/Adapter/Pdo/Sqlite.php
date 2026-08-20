@@ -14,6 +14,7 @@ use Phalcon\Db\Column;
 use Phalcon\Db\ColumnInterface;
 use Phalcon\Db\Enum;
 use Phalcon\Db\Exception;
+use Phalcon\Db\Exceptions\MissingSqliteDatabase;
 use Phalcon\Db\Index;
 use Phalcon\Db\IndexInterface;
 use Phalcon\Db\RawValue;
@@ -75,10 +76,10 @@ class Sqlite extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ColumnInterface[]
      */
-    public function describeColumns(string $table, string $schema = null): array
+    public function describeColumns(string $table, ?string $schema = null): array
     {
     }
 
@@ -87,15 +88,15 @@ class Sqlite extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      *
      * ```php
      * print_r(
-     *     $connection->describeIndexes("robots_parts")
+     *     $connection->describeIndexes("co_orders_x_products")
      * );
      * ```
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\IndexInterface[]
      */
-    public function describeIndexes(string $table, string $schema = null): array
+    public function describeIndexes(string $table, ?string $schema = null): array
     {
     }
 
@@ -103,10 +104,10 @@ class Sqlite extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * Lists table references
      *
      * @param string $table
-     * @param string $schema
+     * @param string|null $schema
      * @return array|\Phalcon\Db\ReferenceInterface[]
      */
-    public function describeReferences(string $table, string $schema = null): array
+    public function describeReferences(string $table, ?string $schema = null): array
     {
     }
 
@@ -115,16 +116,16 @@ class Sqlite extends \Phalcon\Db\Adapter\Pdo\AbstractPdo
      * in the table definition
      *
      * ```php
-     * // Inserting a new robot with a valid default value for the column 'year'
+     * // Inserting a new invoice with a valid default value for the column 'inv_total'
      * $success = $connection->insert(
-     *     "robots",
+     *     "co_invoices",
      *     [
-     *         "Astro Boy",
+     *         "Test Invoice",
      *         $connection->getDefaultValue(),
      *     ],
      *     [
-     *         "name",
-     *         "year",
+     *         "inv_title",
+     *         "inv_total",
      *     ]
      * );
      * ```

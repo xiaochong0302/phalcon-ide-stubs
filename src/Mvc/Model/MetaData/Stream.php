@@ -10,7 +10,9 @@
 namespace Phalcon\Mvc\Model\MetaData;
 
 use Phalcon\Mvc\Model\MetaData;
-use Phalcon\Mvc\Model\Exception;
+use Phalcon\Mvc\Model\MetaData\Exceptions\MetaDataDirectoryNotWritable;
+use Phalcon\Support\Settings;
+use Phalcon\Traits\Php\FileTrait;
 
 /**
  * Phalcon\Mvc\Model\MetaData\Stream
@@ -27,6 +29,9 @@ use Phalcon\Mvc\Model\Exception;
  */
 class Stream extends MetaData
 {
+    use \Phalcon\Traits\Php\FileTrait;
+
+
     /**
      * @var string
      */
@@ -44,21 +49,21 @@ class Stream extends MetaData
     /**
      * Reads meta-data from files
      *
-     * @param string $key
+     * @param mixed $key
      * @return array|null
      */
-    public function read(string $key): array|null
+    public function read($key): array|null
     {
     }
 
     /**
      * Writes the meta-data to files
      *
-     * @param string $key
+     * @param mixed $key
      * @param array $data
      * @return void
      */
-    public function write(string $key, array $data): void
+    public function write($key, array $data): void
     {
     }
 

@@ -9,7 +9,14 @@
  */
 namespace Phalcon\Session\Adapter;
 
-use Phalcon\Session\Exception;
+use Phalcon\Contracts\Session\SessionTypes;
+use Phalcon\Session\Adapter\Exceptions\AdapterRuntimeError;
+use Phalcon\Session\Adapter\Exceptions\InvalidSavePath;
+use Phalcon\Session\Adapter\Exceptions\SavePathUnavailable;
+use Phalcon\Traits\Php\FileTrait;
+use Phalcon\Traits\Php\IniTrait;
+use Phalcon\Traits\Support\Helper\Arr\GetTrait;
+use Phalcon\Traits\Support\Helper\Str\DirSeparatorTrait;
 
 /**
  * Phalcon\Session\Adapter\Stream
@@ -31,34 +38,54 @@ use Phalcon\Session\Exception;
  * $session->setAdapter($files);
  * ```
  *
- * @property array  $options
- * @property string $prefix
- * @property string $path
+ * @phpstan-import-type session_files from SessionTypes
+ * @phpstan-import-type session_stream_options from SessionTypes
+ *
+ * @phpstan-property session_stream_options $options
  */
 class Stream extends \Phalcon\Session\Adapter\Noop
 {
+    use \Phalcon\Traits\Support\Helper\Str\DirSeparatorTrait;
+    use \Phalcon\Traits\Php\FileTrait;
+    use \Phalcon\Traits\Support\Helper\Arr\GetTrait;
+    use \Phalcon\Traits\Php\IniTrait;
+
+
     /**
-     * @var string
+     * Session options
+     *
+     * @phpstan-var session_stream_options
      */
-    private $path = '';
+    protected array $options = [];
+
+    /**
+     * Session prefix
+     */
+    protected string $prefix = '';
+
+    /**
+     * The path of the session files
+     */
+    private string $path = '';
 
     /**
      * Constructor
      *
-     * @param array $options = [
-     *     'prefix' => '',
-     *     'savePath' => ''
-     * ]
+     * @phpstan-param session_stream_options $options
+     *
+     * @throws InvalidSavePath
+     * @throws SavePathUnavailable
+     * @param array $options
      */
     public function __construct(array $options = [])
     {
     }
 
     /**
-     * @param mixed $id
+     * @param string $id
      * @return bool
      */
-    public function destroy($id): bool
+    public function destroy(string $id): bool
     {
     }
 
@@ -66,7 +93,9 @@ class Stream extends \Phalcon\Session\Adapter\Noop
      * Garbage Collector
      *
      * @param int $max_lifetime
+     *
      * @return false|int
+     * @throws AdapterRuntimeError
      */
     public function gc(int $max_lifetime): int|false
     {
@@ -75,50 +104,51 @@ class Stream extends \Phalcon\Session\Adapter\Noop
     /**
      * Ignore the savePath and use local defined path
      *
+     * @param string $path
+     * @param string $name
      * @return bool
-     * @param mixed $path
-     * @param mixed $name
      */
-    public function open($path, $name): bool
+    public function open(string $path, string $name): bool
     {
     }
 
     /**
      * Reads data from the adapter
      *
-     * @param mixed $id
+     * @param string $id
      * @return string
      */
-    public function read($id): string
+    public function read(string $id): string
     {
     }
 
     /**
-     * @param mixed $id
-     * @param mixed $data
+     * Refresh the session file modification time without changing its data
+     *
+     * @param string $id
+     * @param string $data
      * @return bool
      */
-    public function write($id, $data): bool
+    public function updateTimestamp(string $id, string $data): bool
     {
     }
 
     /**
-     * @todo Remove this when we get traits
-     * @param array $collection
-     * @param mixed $index
-     * @param mixed $defaultValue
-     * @param string $cast
-     * @return mixed
+     * Validate the session id (used when strict mode is enabled)
+     *
+     * @param string $id
+     * @return bool
      */
-    protected function getArrVal(array $collection, $index, $defaultValue = null, string $cast = null): mixed
+    public function validateId(string $id): bool
     {
     }
 
     /**
-     * @param string $directory
-     * @return string
+     * @param string $id
+     * @param string $data
+     * @return bool
      */
-    private function getDirSeparator(string $directory): string
+    public function write(string $id, string $data): bool
     {
     }
 
@@ -128,83 +158,20 @@ class Stream extends \Phalcon\Session\Adapter\Noop
      * @param string $pattern
      *
      * @return array|false
+     *
+     * @phpstan-return session_files|false
      */
     protected function getGlobFiles(string $pattern): false|array
     {
     }
 
     /**
-     * @param string $filename
+     * Helper method to get the name prefixed
      *
-     * @return bool
-     *
-     * @link https://php.net/manual/en/function.file-exists.php
-     */
-    protected function phpFileExists(string $filename)
-    {
-    }
-
-    /**
-     * @param string $filename
-     *
-     * @return string|false
-     *
-     * @link https://php.net/manual/en/function.file-get-contents.php
-     */
-    protected function phpFileGetContents(string $filename)
-    {
-    }
-
-    /**
-     * @param string   $filename
-     * @param mixed    $data
-     * @param int      $flags
-     * @param resource $context
-     *
-     * @return int|false
-     *
-     * @link https://php.net/manual/en/function.file-put-contents.php
-     */
-    protected function phpFilePutContents(string $filename, $data, int $flags = 0, $context = null)
-    {
-    }
-
-    /**
-     * @param string $filename
-     * @param string $mode
-     *
-     * @return resource|false
-     *
-     * @link https://php.net/manual/en/function.fopen.php
-     */
-    protected function phpFopen(string $filename, string $mode)
-    {
-    }
-
-    /**
-     * Gets the value of a configuration option
-     *
-     * @param string $varname
-     *
+     * @param float|int|string $name
      * @return string
-     *
-     * @link https://php.net/manual/en/function.ini-get.php
-     * @link https://php.net/manual/en/ini.list.php
      */
-    protected function phpIniGet(string $varname): string
-    {
-    }
-
-    /**
-     * Tells whether the filename is writable
-     *
-     * @param string $filename
-     *
-     * @return bool
-     *
-     * @link https://php.net/manual/en/function.is-writable.php
-     */
-    protected function phpIsWritable(string $filename): bool
+    protected function getPrefixedName($name): string
     {
     }
 }

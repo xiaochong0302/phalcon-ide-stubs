@@ -9,9 +9,13 @@
  */
 namespace Phalcon\Logger;
 
+use Exception as BaseException;
 use Phalcon\Factory\AbstractFactory;
 use Phalcon\Logger\Adapter\AdapterInterface;
-use Phalcon\Logger\Exception;
+use Phalcon\Logger\Adapter\Noop;
+use Phalcon\Logger\Adapter\Stream;
+use Phalcon\Logger\Adapter\Syslog;
+use Throwable;
 
 /**
  * Factory used to create adapters used for Logging
@@ -35,14 +39,14 @@ class AdapterFactory extends AbstractFactory
      * @param array  $options
      *
      * @return AdapterInterface
-     * @throws Exception
+     * @throws BaseException
      */
     public function newInstance(string $name, string $fileName, array $options = []): AdapterInterface
     {
     }
 
     /**
-     * @return string
+     * @return class-string<Throwable>
      */
     protected function getExceptionClass(): string
     {
