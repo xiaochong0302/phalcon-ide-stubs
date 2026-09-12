@@ -144,6 +144,14 @@ interface Repository
     public function getTotalItems(): int;
 
     /**
+     * Sets the items on the current page
+     *
+     * @param mixed $items
+     * @return Repository
+     */
+    public function setItems(mixed $items): Repository;
+
+    /**
      * Sets the aliases for properties repository
      *
      * @param paginator_aliases $aliases

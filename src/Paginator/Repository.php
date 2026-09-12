@@ -109,6 +109,14 @@ class Repository implements \Phalcon\Paginator\RepositoryInterface, \JsonSeriali
     }
 
     /**
+     * @param mixed $items
+     * @return RepositoryInterface
+     */
+    public function setItems(mixed $items): RepositoryInterface
+    {
+    }
+
+    /**
      * @param paginator_aliases $aliases
      * @return RepositoryInterface
      */
