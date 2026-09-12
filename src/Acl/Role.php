@@ -9,6 +9,7 @@
  */
 namespace Phalcon\Acl;
 
+use Phalcon\Acl\Exceptions\ForbiddenDelimiter;
 use Phalcon\Acl\Exceptions\ForbiddenWildcard;
 
 /**
@@ -17,7 +18,7 @@ use Phalcon\Acl\Exceptions\ForbiddenWildcard;
 class Role extends \Phalcon\Acl\AbstractElement implements \Phalcon\Acl\RoleInterface
 {
     /**
-     * Phalcon\Acl\Role constructor
+     * Role constructor.
      *
      * @param string $name
      * @param string|null $description

@@ -208,6 +208,17 @@ abstract class Dialect implements \Phalcon\Db\DialectInterface
     }
 
     /**
+     * Renders a LIMIT/OFFSET value: a bound placeholder passes through, any
+     * other value is coerced to an integer to prevent SQL injection.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    protected function getLimitValue($value): string
+    {
+    }
+
+    /**
      * Registers custom SQL functions
      *
      * @param string $name
@@ -378,6 +389,18 @@ abstract class Dialect implements \Phalcon\Db\DialectInterface
      * @return bool
      */
     public function supportsReturning(): bool
+    {
+    }
+
+    /**
+     * Escape a string literal for a single quoted SQL string. The standard
+     * way doubles the single quotes. A dialect where the backslash is an
+     * escape character must override this method.
+     *
+     * @param string $value
+     * @return string
+     */
+    protected function escapeStringLiteral(string $value): string
     {
     }
 
